@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Amazon.Kinesis;
+using Amazon.Kinesis.Model;
 
 namespace KinesisSharp
 {
@@ -31,18 +33,52 @@ namespace KinesisSharp
 
     public class Worker
     {
-        private readonly Amazon.Kinesis.IAmazonKinesis amazonKinesisClient;
+        private readonly string streamName;
+        private readonly IAmazonKinesis amazonKinesisClient;
 
-        public Worker(Amazon.Kinesis.IAmazonKinesis amazonKinesisClient)
+        public Worker(string streamName, IAmazonKinesis amazonKinesisClient)
         {
+            this.streamName = streamName;
             this.amazonKinesisClient = amazonKinesisClient;
         }
 
-        public Task RunAsync()
+        public async Task RunAsync()
         {
+            
+            var shards = await amazonKinesisClient.ListShardsAsync(new ListShardsRequest
+            {
+                StreamName = streamName
+            });
+
+            var shard1 = shards.Shards[3];
+
+            var iteratorResponse = await amazonKinesisClient.GetShardIteratorAsync(new GetShardIteratorRequest
+            {
+                ShardId = shard1.ShardId,
+                ShardIteratorType = ShardIteratorType.AT_SEQUENCE_NUMBER,
+                StartingSequenceNumber = shard1.SequenceNumberRange.StartingSequenceNumber,
+                StreamName = streamName
+            });
+
+
+            var iterator = iteratorResponse.ShardIterator;
             while (true)
             {
-                this.amazonKinesisClient.GetShardIteratorAsync()
+
+                var records = await amazonKinesisClient.GetRecordsAsync(new GetRecordsRequest
+                {
+                    Limit = 10,
+                    ShardIterator = iterator
+                });
+
+                iterator = records.NextShardIterator;
+
+                Console.WriteLine("REtrieved: " + records.Records.Count);
+
+                if (records.Records.Count == 0)
+                {
+                    break;
+                }
             }
         }
     }
