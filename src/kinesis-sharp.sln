@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29230.47
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KinesisSharp", "KinesisSharp\KinesisSharp.csproj", "{9617ED76-1596-49CA-864C-207DDFD279C2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KinesisSharp", "KinesisSharp\KinesisSharp.csproj", "{9617ED76-1596-49CA-864C-207DDFD279C2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tester", "Tester\Tester.csproj", "{7ABCDDF2-C8B5-4DE1-B8C5-B9C53E06758E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tester", "Tester\Tester.csproj", "{7ABCDDF2-C8B5-4DE1-B8C5-B9C53E06758E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
