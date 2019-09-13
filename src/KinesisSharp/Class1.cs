@@ -25,5 +25,11 @@ namespace KinesisSharp
             this.concurrencyToken = concurrencyToken;
             this.parentShardIds = parentShardIds;
         }
+
+        public string ConcurrencyToken => concurrencyToken;
+
+        public IEnumerable<string> ParentShardIds => parentShardIds;
+
+        public string ShardId => shardId;
     }
 }

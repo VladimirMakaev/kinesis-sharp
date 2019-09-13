@@ -5,12 +5,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Lease\" />
     <Folder Include="Checkpoints\" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.Kinesis" Version="3.3.100.72" />
+    <PackageReference Include="Microsoft.AspNetCore.Hosting.Abstractions" Version="2.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.Extensions.Options">
+      <HintPath>C:\Program Files\dotnet\sdk\NuGetFallbackFolder\microsoft.extensions.options\2.2.0\lib\netstandard2.0\Microsoft.Extensions.Options.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

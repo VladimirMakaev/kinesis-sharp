@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -8,13 +9,37 @@ using Amazon.Kinesis.Model;
 using Json.Net;
 using KinesisSharp;
 using LocalStack.Client;
-using LocalStack.Client.Contracts;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Tester
 {
-    class Program
+    internal class Program
     {
-        static async Task Main(string[] args)
+        private static async Task Main(string[] args)
+        {
+            var host = new HostBuilder()
+                .ConfigureAppConfiguration(b => b.AddInMemoryCollection(new Dictionary<string, string>
+                {
+                    {"Logging:LogLevel:Default", "Debug"},
+                    {"Scheduler:NumberOfWorkers", "4"}
+                }))
+                .ConfigureServices(ConfigureServices)
+                .UseConsoleLifetime()
+                .Build();
+
+            await host.RunAsync();
+
+            //await PublishRecords(streamName, session.CreateClient<AmazonKinesisClient>());
+
+            //var worker = new Worker1(streamName, session.CreateClient<AmazonKinesisClient>());
+
+            //await worker.RunAsync();
+        }
+
+        private static void ConfigureServices(HostBuilderContext host, IServiceCollection services)
         {
             var awsAccessKeyId = "Key Id";
             var awsAccessKey = "Secret Key";
@@ -24,28 +49,32 @@ namespace Tester
 
             var streamName = "reader-stream";
 
-            ISession session = SessionStandalone
+            var session = SessionStandalone
                 .Init()
                 .WithSessionOptions(awsAccessKeyId, awsAccessKey, awsSessionToken, regionName)
                 .WithConfig(localStackHost)
                 .Create();
 
-            //await PublishRecords(streamName, session.CreateClient<AmazonKinesisClient>());
+            services.AddOptions();
 
-            var worker = new Worker(streamName, session.CreateClient<AmazonKinesisClient>());
+            services.Configure<WorkerSchedulerConfiguration>(host.Configuration.GetSection("Scheduler"));
 
-            await worker.RunAsync();
+            services.AddLogging(b => b.AddConfiguration(host.Configuration.GetSection("Logging")).AddConsole());
+
+            services.AddSingleton<IAmazonKinesis>(session.CreateClient<AmazonKinesisClient>());
+
+            services.AddSingleton<IHostedService, WorkerScheduler>();
         }
 
-        static async Task PublishRecords(String streamName, IAmazonKinesis client)
+        private static async Task PublishRecords(string streamName, IAmazonKinesis client)
         {
             var numberOfRecords = 100;
             var partitions = new[] {1, 2, 3, 4};
 
             var records = Enumerable.Range(1, numberOfRecords).Select(i =>
-                new Record {Partition = partitions[(i * 2343) % 4], OrderId = i, Extra = "Message: " + i});
-                
-                
+                new Record {Partition = partitions[i * 2343 % 4], OrderId = i, Extra = "Message: " + i});
+
+
             var result = await client.PutRecordsAsync(new PutRecordsRequest
             {
                 Records = records.Select(r => new PutRecordsRequestEntry
@@ -55,9 +84,8 @@ namespace Tester
                 }).ToList(),
                 StreamName = streamName
             });
-            
-            Console.WriteLine(JsonNet.Serialize(result));
 
+            Console.WriteLine(JsonNet.Serialize(result));
         }
     }
 

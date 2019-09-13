@@ -29,12 +29,12 @@ namespace KinesisSharp
     }
 
 
-    public class Worker
+    public class Worker1
     {
         private readonly IAmazonKinesis amazonKinesisClient;
         private readonly string streamName;
 
-        public Worker(string streamName, IAmazonKinesis amazonKinesisClient)
+        public Worker1(string streamName, IAmazonKinesis amazonKinesisClient)
         {
             this.streamName = streamName;
             this.amazonKinesisClient = amazonKinesisClient;
