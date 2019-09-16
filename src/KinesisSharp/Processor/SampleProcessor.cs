@@ -5,7 +5,7 @@ using Amazon.Kinesis.Model;
 
 namespace KinesisSharp.Processor
 {
-    public class SampleProcessor : IRecordsProcessorAsync
+    public class SampleProcessor : IRecordsProcessor
     {
         public Task ProcessRecordsAsync(IReadOnlyList<Record> records, RecordProcessingContext context)
         {

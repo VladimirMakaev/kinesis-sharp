@@ -1,0 +1,93 @@
+﻿[
+  {
+    "AdjacentParentShardId": null,
+    "HashKeyRange": {
+      "EndingHashKey": "68056473384187692692674921486353642290",
+      "StartingHashKey": "0"
+    },
+    "ParentShardId": null,
+    "SequenceNumberRange": {
+      "EndingSequenceNumber": null,
+      "StartingSequenceNumber": "49599514466740492332170430467668429904955891958679601154"
+    },
+    "ShardId": "shardId-000000000000"
+  },
+  {
+    "AdjacentParentShardId": null,
+    "HashKeyRange": {
+      "EndingHashKey": "136112946768375385385349842972707284581",
+      "StartingHashKey": "68056473384187692692674921486353642291"
+    },
+    "ParentShardId": null,
+    "SequenceNumberRange": {
+      "EndingSequenceNumber": null,
+      "StartingSequenceNumber": "49599514466762793077368961090809965623228540320185581586"
+    },
+    "ShardId": "shardId-000000000001"
+  },
+  {
+    "AdjacentParentShardId": null,
+    "HashKeyRange": {
+      "EndingHashKey": "204169420152563078078024764459060926872",
+      "StartingHashKey": "136112946768375385385349842972707284582"
+    },
+    "ParentShardId": null,
+    "SequenceNumberRange": {
+      "EndingSequenceNumber": null,
+      "StartingSequenceNumber": "49599514466785093822567491713951501341501188681691562018"
+    },
+    "ShardId": "shardId-000000000002"
+  },
+  {
+    "AdjacentParentShardId": null,
+    "HashKeyRange": {
+      "EndingHashKey": "272225893536750770770699685945414569163",
+      "StartingHashKey": "204169420152563078078024764459060926873"
+    },
+    "ParentShardId": null,
+    "SequenceNumberRange": {
+      "EndingSequenceNumber": "49599514466818544940365287648662595993090546800934256690",
+      "StartingSequenceNumber": "49599514466807394567766022337093037059773837043197542450"
+    },
+    "ShardId": "shardId-000000000003"
+  },
+  {
+    "AdjacentParentShardId": null,
+    "HashKeyRange": {
+      "EndingHashKey": "340282366920938463463374607431768211455",
+      "StartingHashKey": "272225893536750770770699685945414569164"
+    },
+    "ParentShardId": null,
+    "SequenceNumberRange": {
+      "EndingSequenceNumber": null,
+      "StartingSequenceNumber": "49599514466829695312964552960234572778046485404703522882"
+    },
+    "ShardId": "shardId-000000000004"
+  },
+  {
+    "AdjacentParentShardId": null,
+    "HashKeyRange": {
+      "EndingHashKey": "238197656844656924424362225202237748017",
+      "StartingHashKey": "204169420152563078078024764459060926873"
+    },
+    "ParentShardId": "shardId-000000000003",
+    "SequenceNumberRange": {
+      "EndingSequenceNumber": null,
+      "StartingSequenceNumber": "49599514468279243750869043464434394465768629177470156882"
+    },
+    "ShardId": "shardId-000000000005"
+  },
+  {
+    "AdjacentParentShardId": null,
+    "HashKeyRange": {
+      "EndingHashKey": "272225893536750770770699685945414569163",
+      "StartingHashKey": "238197656844656924424362225202237748018"
+    },
+    "ParentShardId": "shardId-000000000003",
+    "SequenceNumberRange": {
+      "EndingSequenceNumber": null,
+      "StartingSequenceNumber": "49599514468301544496067574087575930184041277538976137314"
+    },
+    "ShardId": "shardId-000000000006"
+  }
+]

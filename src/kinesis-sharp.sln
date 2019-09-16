@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KinesisSharp", "KinesisShar
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tester", "Tester\Tester.csproj", "{7ABCDDF2-C8B5-4DE1-B8C5-B9C53E06758E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{68CC645D-C200-4452-9AFE-95BF79BCBCAC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{7ABCDDF2-C8B5-4DE1-B8C5-B9C53E06758E}.Release|x64.Build.0 = Release|Any CPU
 		{7ABCDDF2-C8B5-4DE1-B8C5-B9C53E06758E}.Release|x86.ActiveCfg = Release|Any CPU
 		{7ABCDDF2-C8B5-4DE1-B8C5-B9C53E06758E}.Release|x86.Build.0 = Release|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Debug|x64.Build.0 = Debug|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Debug|x86.Build.0 = Debug|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Release|x64.ActiveCfg = Release|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Release|x64.Build.0 = Release|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Release|x86.ActiveCfg = Release|Any CPU
+		{68CC645D-C200-4452-9AFE-95BF79BCBCAC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

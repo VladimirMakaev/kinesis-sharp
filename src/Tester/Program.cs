@@ -8,7 +8,13 @@ using Amazon.Kinesis;
 using Amazon.Kinesis.Model;
 using Json.Net;
 using KinesisSharp;
+using KinesisSharp.Configuration;
+using KinesisSharp.Lease;
+using KinesisSharp.Lease.Registry;
+using KinesisSharp.Processor;
+using KinesisSharp.Shards;
 using LocalStack.Client;
+using LocalStack.Client.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,11 +26,13 @@ namespace Tester
     {
         private static async Task Main(string[] args)
         {
+            //await PublishRecords("reader-stream", CreateLocalStackSession().CreateClient<AmazonKinesisClient>());
             var host = new HostBuilder()
                 .ConfigureAppConfiguration(b => b.AddInMemoryCollection(new Dictionary<string, string>
                 {
                     {"Logging:LogLevel:Default", "Debug"},
-                    {"Scheduler:NumberOfWorkers", "4"}
+                    {"Kinesis:NumberOfWorkers", "2"},
+                    {"Kinesis:StreamArn", "reader-stream"}
                 }))
                 .ConfigureServices(ConfigureServices)
                 .UseConsoleLifetime()
@@ -32,14 +40,36 @@ namespace Tester
 
             await host.RunAsync();
 
-            //await PublishRecords(streamName, session.CreateClient<AmazonKinesisClient>());
-
-            //var worker = new Worker1(streamName, session.CreateClient<AmazonKinesisClient>());
+            //var worker = new WorkerService(streamName, session.CreateClient<AmazonKinesisClient>());
 
             //await worker.RunAsync();
         }
 
         private static void ConfigureServices(HostBuilderContext host, IServiceCollection services)
+        {
+            var session = CreateLocalStackSession();
+
+            services.AddOptions();
+
+            services.Configure<ApplicationConfiguration>(host.Configuration.GetSection("Kinesis"));
+            services.Configure<StreamConfiguration>(host.Configuration.GetSection("Kinesis"));
+
+            services.AddLogging(b => b.AddConfiguration(host.Configuration.GetSection("Logging")).AddConsole());
+            services.AddSingleton<IAmazonKinesis>(session.CreateClient<AmazonKinesisClient>());
+
+            //services.AddHostedService<WorkerScheduler>();
+            services.AddHostedService<WorkerService>();
+            services.AddHostedService<WorkerService>();
+            services.AddHostedService<WorkerService>();
+            services.AddHostedService<WorkerService>();
+
+            services.AddSingleton<ILeaseRegistryQuery, InMemoryLeaseRegistryQuery>();
+            services.AddSingleton<IRecordsProcessor, SampleProcessor>();
+            services.AddSingleton<IDiscoverShards, DiscoverShards>();
+            services.AddSingleton<ILeaseRegistry, InMemoryLeaseRegistry>();
+        }
+
+        private static ISession CreateLocalStackSession()
         {
             var awsAccessKeyId = "Key Id";
             var awsAccessKey = "Secret Key";
@@ -47,23 +77,12 @@ namespace Tester
             var regionName = "us-west-1";
             var localStackHost = "localhost";
 
-            var streamName = "reader-stream";
-
             var session = SessionStandalone
                 .Init()
                 .WithSessionOptions(awsAccessKeyId, awsAccessKey, awsSessionToken, regionName)
                 .WithConfig(localStackHost)
                 .Create();
-
-            services.AddOptions();
-
-            services.Configure<WorkerSchedulerConfiguration>(host.Configuration.GetSection("Scheduler"));
-
-            services.AddLogging(b => b.AddConfiguration(host.Configuration.GetSection("Logging")).AddConsole());
-
-            services.AddSingleton<IAmazonKinesis>(session.CreateClient<AmazonKinesisClient>());
-
-            services.AddSingleton<IHostedService, WorkerScheduler>();
+            return session;
         }
 
         private static async Task PublishRecords(string streamName, IAmazonKinesis client)
