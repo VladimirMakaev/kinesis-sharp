@@ -58,7 +58,7 @@ namespace KinesisSharp
                 await Task.WhenAny(
                     Task.WhenAll(workerTasks.Values),
                     Task.Delay(-1, cancellationToken)
-                );
+                ).ConfigureAwait(false);
             }
         }
 
@@ -95,7 +95,7 @@ namespace KinesisSharp
             this.logger.LogDebug("Starting consumer {Consumer}", consumerId);
             while (!token.IsCancellationRequested)
             {
-                var currentLeaseResponse = await registry.RecoverLeaseAsync(consumerId);
+                var currentLeaseResponse = await registry.RecoverLeaseAsync(consumerId).ConfigureAwait(false);
                 if (currentLeaseResponse.Success)
                 {
                     logger.LogInformation("Consumer {Consumer} recovered lock for {Shard}", consumerId,
@@ -105,24 +105,24 @@ namespace KinesisSharp
                 else
                 {
                     var availableShards =
-                        await listShards.GetShardsAsync(applicationConfiguration.StreamArn, token);
+                        await listShards.GetShardsAsync(applicationConfiguration.StreamArn, token).ConfigureAwait(false);
 
                     foreach (var shard in availableShards)
                     {
-                        var response = await registry.TakeLeaseAsync(shard.ShardId, consumerId);
+                        var response = await registry.TakeLeaseAsync(shard.ShardId, consumerId).ConfigureAwait(false);
                         if (response.Success)
                         {
                             logger.LogInformation("Consumer {Consumer} acquired lock for {Shard}", consumerId,
                                 shard.ShardId);
 
                             var lease = response.Lease;
-                            await registry.UpdateLeaseAsync(lease);
+                            await registry.UpdateLeaseAsync(lease).ConfigureAwait(false);
                             break;
                         }
                     }
                 }
 
-                await Task.Delay(1000, token);
+                await Task.Delay(1000, token).ConfigureAwait(false);
             }
         }
     }

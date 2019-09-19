@@ -49,10 +49,10 @@ namespace KinesisSharp.Lease
         public async Task<LeaseMatchingResult> ResolveLeasesForShards(CancellationToken token = default)
         {
             var shardMap =
-                new ShardMap(await discoverShards.GetShardsAsync(streamConfiguration.Value.StreamArn, token));
+                new ShardMap(await discoverShards.GetShardsAsync(streamConfiguration.Value.StreamArn, token).ConfigureAwait(false));
 
             var leaseMap =
-                new LeaseMap(await leaseQuery.GetAllLeasesAsync(streamConfiguration.Value.ApplicationName, token));
+                new LeaseMap(await leaseQuery.GetAllLeasesAsync(streamConfiguration.Value.ApplicationName, token).ConfigureAwait(false));
 
             var openShards = GetOpenShards(shardMap);
 

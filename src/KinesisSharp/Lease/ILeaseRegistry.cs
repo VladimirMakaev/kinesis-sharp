@@ -22,7 +22,7 @@ namespace KinesisSharp.Lease
         {
             try
             {
-                await mutex.WaitAsync();
+                await mutex.WaitAsync().ConfigureAwait(false);
                 var lease = leases.FirstOrDefault(l => l.Owner == ownerId);
                 return new RecoverLeaseResult(lease != null, lease);
             }
@@ -36,7 +36,7 @@ namespace KinesisSharp.Lease
         {
             try
             {
-                await mutex.WaitAsync();
+                await mutex.WaitAsync().ConfigureAwait(false);
                 var lease = leases.FirstOrDefault(l => l.ShardId == leaseId && l.Owner != owner);
                 if (lease != null)
                 {

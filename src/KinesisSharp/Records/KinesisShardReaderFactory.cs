@@ -65,15 +65,16 @@ namespace KinesisSharp.Records
         {
             private readonly int batchLimit;
             private readonly IAmazonKinesis kinesisClient;
-            private readonly string shardIterator;
 
             public KinesisReader(string shardIterator, IAmazonKinesis kinesisClient, int batchLimit)
             {
-                this.shardIterator = shardIterator;
+                ShardIterator = shardIterator;
                 this.kinesisClient = kinesisClient;
                 this.batchLimit = batchLimit;
                 EndOfShard = shardIterator == null;
             }
+
+            public string ShardIterator { get; private set; }
 
 
             public bool EndOfShard { get; private set; }
@@ -84,10 +85,12 @@ namespace KinesisSharp.Records
             {
                 var response = await kinesisClient.GetRecordsAsync(new GetRecordsRequest
                 {
-                    ShardIterator = shardIterator,
+                    ShardIterator = ShardIterator,
                     Limit = batchLimit
                 }, token).ConfigureAwait(false);
 
+
+                ShardIterator = response.NextShardIterator;
                 Records = new ReadOnlyCollection<Record>(response.Records);
 
                 MillisBehindLatest = response.MillisBehindLatest;

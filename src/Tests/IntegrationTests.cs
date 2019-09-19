@@ -34,7 +34,7 @@ namespace Tests
             var response = await Subject.ListShardsAsync(new ListShardsRequest
             {
                 StreamName = streamName
-            });
+            }).ConfigureAwait(false);
             outputHelper.WriteLine(JsonConvert.SerializeObject(response, Formatting.Indented));
         }
 
@@ -42,7 +42,7 @@ namespace Tests
         public async Task Test2()
         {
             outputHelper.WriteLine(JsonConvert.SerializeObject(
-                await new DiscoverShardsMock().GetShardsAsync("reader-stream-1", CancellationToken.None)));
+                await new DiscoverShardsMock().GetShardsAsync("reader-stream-1", CancellationToken.None).ConfigureAwait(false)));
         }
     }
 }

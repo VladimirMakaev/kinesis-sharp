@@ -25,7 +25,7 @@ namespace Tests
         [Fact]
         public async Task Test1()
         {
-            var shards = await Subject.GetShardsAsync("reader-stream", CancellationToken.None);
+            var shards = await Subject.GetShardsAsync("reader-stream", CancellationToken.None).ConfigureAwait(false);
             outputHelper.WriteLine(JsonConvert.SerializeObject(shards, Formatting.Indented));
         }
     }

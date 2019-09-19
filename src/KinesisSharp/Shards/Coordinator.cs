@@ -19,7 +19,7 @@ namespace KinesisSharp.Shards
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var shards = await discoverShards.GetShardsAsync(streamConfiguration.Value.StreamArn, stoppingToken);
+            var shards = await discoverShards.GetShardsAsync(streamConfiguration.Value.StreamArn, stoppingToken).ConfigureAwait(false);
 
 
         }

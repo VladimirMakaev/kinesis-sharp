@@ -41,7 +41,7 @@ namespace Tests.Lease
 
             var subject = new LeaseCoordinationService(configuration, queryMock.Object, new DiscoverShardsMock());
 
-            var response = await subject.ResolveLeasesForShards();
+            var response = await subject.ResolveLeasesForShards().ConfigureAwait(false);
 
 
             response.LeasesToBeCreated.Select(s => s.ShardId).ShouldBe(

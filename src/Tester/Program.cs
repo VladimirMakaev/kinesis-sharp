@@ -38,7 +38,7 @@ namespace Tester
                 .UseConsoleLifetime()
                 .Build();
 
-            await host.RunAsync();
+            await host.RunAsync().ConfigureAwait(false);
 
             //var worker = new WorkerService(streamName, session.CreateClient<AmazonKinesisClient>());
 
@@ -58,9 +58,9 @@ namespace Tester
             services.AddSingleton<IAmazonKinesis>(session.CreateClient<AmazonKinesisClient>());
 
             //services.AddHostedService<WorkerScheduler>();
-            services.AddHostedService<WorkerService>();
-            services.AddHostedService<WorkerService>();
-            services.AddHostedService<WorkerService>();
+//            services.AddHostedService<WorkerService>();
+  //          services.AddHostedService<WorkerService>();
+    //        services.AddHostedService<WorkerService>();
             services.AddHostedService<WorkerService>();
 
             services.AddSingleton<ILeaseRegistryQuery, InMemoryLeaseRegistryQuery>();
@@ -102,7 +102,7 @@ namespace Tester
                     PartitionKey = r.Partition.ToString()
                 }).ToList(),
                 StreamName = streamName
-            });
+            }).ConfigureAwait(false);
 
             Console.WriteLine(JsonNet.Serialize(result));
         }

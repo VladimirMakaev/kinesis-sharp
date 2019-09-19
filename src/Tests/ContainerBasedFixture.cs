@@ -1,26 +1,43 @@
 using System;
 using LocalStack.Client;
 using LocalStack.Client.Contracts;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Tests
 {
     public class ContainerBasedFixture<TSubject> where TSubject : class
     {
+        private readonly Lazy<IConfiguration> configuration;
         private readonly Lazy<IServiceProvider> provider;
 
         public ContainerBasedFixture()
         {
             provider = new Lazy<IServiceProvider>(CreateProvider);
+            configuration = new Lazy<IConfiguration>(CreateConfiguration);
         }
 
         public TSubject Subject => provider.Value.GetRequiredService<TSubject>();
 
+        protected IConfiguration Configuration => configuration.Value;
+
+        private IConfiguration CreateConfiguration()
+        {
+            return ConfigureConfiguration(new ConfigurationBuilder()).Build();
+        }
+
+        protected virtual IConfigurationBuilder ConfigureConfiguration(IConfigurationBuilder builder)
+        {
+            return builder;
+        }
+
         private IServiceProvider CreateProvider()
         {
             var services = new ServiceCollection();
-            ConfigureServices(services);
+            services.AddOptions();
+            services.AddSingleton(p => configuration.Value);
             RegisterSubject(services);
+            ConfigureServices(services);
             return services.BuildServiceProvider();
         }
 

@@ -33,7 +33,7 @@ namespace KinesisSharp.Shards
                 {
                     StreamName = streamName,
                     MaxResults = BatchSize
-                }, token);
+                }, token).ConfigureAwait(false);
 
                 result.AddRange(response.Shards);
                 tokenRequestToken = response.NextToken;
