@@ -71,11 +71,6 @@ namespace KinesisSharp.Shards
             }
         }
 
-        public IReadOnlyCollection<Shard> SelectParents(Shard shard)
-        {
-            return new ReadOnlyCollection<Shard>(GetParents(shard).ToList());
-        }
-
         private IEnumerable<Shard> GetParents(Shard shard)
         {
             //Trying to avoid excessive allocations for List & it's internals. This way the List capacity will be correctly set

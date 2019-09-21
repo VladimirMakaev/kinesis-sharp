@@ -59,7 +59,7 @@ namespace Tests
 
         public static ISession CreateSession()
         {
-            var awsAccessKeyId = "Key Id";
+            var awsAccessKeyId = "Key LockId";
             var awsAccessKey = "Secret Key";
             var awsSessionToken = "Token";
             var regionName = "us-west-1";
