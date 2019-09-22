@@ -11,34 +11,15 @@ using KinesisSharp.Lease.Registry;
 using KinesisSharp.Shards;
 using Microsoft.Extensions.Options;
 
-namespace KinesisSharp.Lease
+namespace KinesisSharp.Lease.Discovery
 {
-    public class LeaseMatchingResult
-    {
-        public LeaseMatchingResult(IReadOnlyCollection<Lease> leasesToBeCreated,
-            IReadOnlyCollection<Lease> leasesToBeDeleted)
-        {
-            LeasesToBeCreated = leasesToBeCreated;
-            LeasesToBeDeleted = leasesToBeDeleted;
-        }
-
-        public IReadOnlyCollection<Lease> LeasesToBeCreated { get; }
-
-        public IReadOnlyCollection<Lease> LeasesToBeDeleted { get; }
-    }
-
-    public interface ILeaseCoordinationService
-    {
-        Task<LeaseMatchingResult> ResolveLeasesForShards(CancellationToken token = default);
-    }
-
-    public class LeaseCoordinationService : ILeaseCoordinationService
+    public class LeaseDiscoveryService : ILeaseDiscoveryService
     {
         private readonly IDiscoverShards discoverShards;
         private readonly ILeaseRegistryQuery leaseQuery;
         private readonly IOptions<ApplicationConfiguration> streamConfiguration;
 
-        public LeaseCoordinationService(IOptions<ApplicationConfiguration> streamConfiguration,
+        public LeaseDiscoveryService(IOptions<ApplicationConfiguration> streamConfiguration,
             ILeaseRegistryQuery leaseQuery, IDiscoverShards discoverShards)
         {
             this.streamConfiguration = streamConfiguration;
@@ -80,7 +61,7 @@ namespace KinesisSharp.Lease
         {
             return openShards.SelectMany(
                 openShard => FindObsolete(requestedPosition, shardMap, leaseMap, openShard)
-            ).ToList();
+            ).Distinct(new LeaseByShardIdEquality()).ToList();
         }
 
         private static List<Shard> FindNewLeases(IList<Shard> openShards, InitialPosition requestedPosition,
@@ -90,8 +71,9 @@ namespace KinesisSharp.Lease
                 .SelectMany(s =>
                     FindDeepestReachable(requestedPosition, shardMap, s)
                         .Where(x => (NoParents(x) || AllParentsClosed(x, leaseMap)) &&
+                                    !shardMap.IsBroken(x) &&
                                     !leaseMap.ContainsKey(x.ShardId)))
-                .Distinct(new ShardEqualityComparer())
+                .Distinct(new ShardByIdEquality())
                 .ToList();
         }
 
@@ -149,27 +131,6 @@ namespace KinesisSharp.Lease
             return true;
         }
 
-        private static Lease TryLookup(string parentShardId, LeaseMap leaseMap)
-        {
-            return parentShardId != null && leaseMap.ContainsKey(parentShardId) ? leaseMap[parentShardId] : null;
-        }
-
-        private static IEnumerable<(Shard Shard, Lease Lease)> IterateAncestorsFromOpenShard(Shard openShard,
-            ShardMap shardMap, LeaseMap leaseMap)
-        {
-            if (!IsOpen(openShard))
-            {
-                throw new InvalidOperationException("Shard isn't open");
-            }
-
-            foreach (var ancestor in shardMap.SelectAllAncestors(openShard))
-            {
-                yield return (Shard: ancestor, Lease: leaseMap[ancestor.ShardId]);
-            }
-
-            yield return (Shard: openShard, Lease: leaseMap[openShard.ShardId]);
-        }
-
 
         private static IEnumerable<Lease> FindObsolete(InitialPosition requestedPosition, ShardMap map,
             LeaseMap leaseMap,
@@ -181,8 +142,6 @@ namespace KinesisSharp.Lease
                     leaseMap.TryGetValue(currentOpenShard.ShardId, out var lease);
                     return FindDeepestObsoleteRecursive(false, currentOpenShard, requestedPosition, map, leaseMap);
 
-                case InitialPositionType.Latest:
-                case InitialPositionType.AtTimeStamp:
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -227,14 +186,25 @@ namespace KinesisSharp.Lease
             {
                 case InitialPositionType.TrimHorizon:
                     return map.SelectAllAncestors(currentOpenShard).Concat(new[] {currentOpenShard});
-                case InitialPositionType.AtTimeStamp:
-                case InitialPositionType.Latest:
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
 
-        private class ShardEqualityComparer : EqualityComparer<Shard>
+        private class LeaseByShardIdEquality : EqualityComparer<Lease>
+        {
+            public override bool Equals(Lease x, Lease y)
+            {
+                return Equals(x?.ShardId, y?.ShardId);
+            }
+
+            public override int GetHashCode(Lease obj)
+            {
+                return obj?.ShardId.GetHashCode() ?? 0;
+            }
+        }
+
+        private class ShardByIdEquality : EqualityComparer<Shard>
         {
             public override bool Equals(Shard x, Shard y)
             {

@@ -7,9 +7,8 @@ namespace KinesisSharp.Lease.Registry
     {
         Task<bool> CreateLease(string application, Lease lease, CancellationToken token);
 
-        Task<UpdateLeaseResult> UpdateLease(Lease lease, CancellationToken token);
+        Task<UpdateLeaseResult> UpdateLease(string application, Lease lease, CancellationToken token);
 
-        Task<bool> DeleteLease(string shardId, CancellationToken token);
+        Task<bool> DeleteLease(string application, string shardId, CancellationToken token);
     }
-
 }

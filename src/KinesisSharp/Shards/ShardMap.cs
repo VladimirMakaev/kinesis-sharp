@@ -11,6 +11,23 @@ namespace KinesisSharp.Shards
         {
         }
 
+        public bool IsBroken(Shard shard)
+        {
+            if (!string.IsNullOrEmpty(shard.AdjacentParentShardId) &&
+                !Dictionary.ContainsKey(shard.AdjacentParentShardId))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrEmpty(shard.ParentShardId) &&
+                !Dictionary.ContainsKey(shard.ParentShardId))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
         public IEnumerable<Shard> GetBrokenShards()
         {
             foreach (var shard in Dictionary.Values)
@@ -27,11 +44,6 @@ namespace KinesisSharp.Shards
                     yield return shard;
                 }
             }
-        }
-
-        public ShardMap FilterByTimestamp(string timeStamp, IReadOnlyCollection<Lease.Lease> allLeases)
-        {
-            return null;
         }
 
         public IEnumerable<Shard> SelectAllAncestors(Shard shard)
@@ -69,23 +81,6 @@ namespace KinesisSharp.Shards
                     yield return parent;
                 }
             }
-        }
-
-        private IEnumerable<Shard> GetParents(Shard shard)
-        {
-            //Trying to avoid excessive allocations for List & it's internals. This way the List capacity will be correctly set
-
-            if (ContainsKey(shard.ParentShardId))
-            {
-                if (ContainsKey(shard.AdjacentParentShardId))
-                {
-                    return new[] {this[shard.ParentShardId], this[shard.AdjacentParentShardId]};
-                }
-
-                return new[] {this[shard.ParentShardId]};
-            }
-
-            return new[] {this[shard.AdjacentParentShardId]};
         }
     }
 }

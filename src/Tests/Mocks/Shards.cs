@@ -37,6 +37,11 @@ namespace Tests.Mocks
                 {
                     StartingHashKey = shard1.HashKeyRange?.StartingHashKey,
                     EndingHashKey = shard2.HashKeyRange?.EndingHashKey
+                },
+                SequenceNumberRange = new SequenceNumberRange
+                {
+                    StartingSequenceNumber = atPosition.ToString(),
+                    EndingSequenceNumber = null
                 }
             };
         }
@@ -44,6 +49,7 @@ namespace Tests.Mocks
         public static (Shard First, Shard Second) Split(Shard shard, string position, string id1, string id2,
             long atHash)
         {
+            shard.SequenceNumberRange.EndingSequenceNumber = position;
             return (
                 new Shard
                 {

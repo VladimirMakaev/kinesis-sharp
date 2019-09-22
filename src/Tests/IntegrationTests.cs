@@ -63,5 +63,21 @@ namespace Tests
                 JsonConvert.SerializeObject(await inMemory.GetShardsAsync("test", CancellationToken.None)
                     .ConfigureAwait(false), Formatting.Indented));
         }
+
+        [Fact]
+        public async Task Test4()
+        {
+            var shard1 = Shards.Create("shard-1", 0, 5);
+            var shard2 = Shards.Create("shard-2", 5, 10);
+            var shard3 = Shards.Merge("shard-3", shard1, shard2, 100);
+            var shard4 = Shards.Create("shard-4", 10, null);
+            var (shard5, shard6) = Shards.Split(shard3, "150", "shard-5", "shard-6", 6);
+
+            var inMemory = new InMemoryDiscoverShards(shard1, shard2, shard3, shard4, shard5, shard6);
+
+            outputHelper.WriteLine(
+                JsonConvert.SerializeObject(await inMemory.GetShardsAsync("test", CancellationToken.None)
+                    .ConfigureAwait(false), Formatting.Indented));
+        }
     }
 }

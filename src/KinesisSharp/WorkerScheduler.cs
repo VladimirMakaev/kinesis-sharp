@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using KinesisSharp.Configuration;
-using KinesisSharp.Lease;
 using KinesisSharp.Shards;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,20 +13,18 @@ namespace KinesisSharp
 {
     public class WorkerScheduler : IHostedService, IDisposable
     {
+        private readonly ApplicationConfiguration applicationConfiguration;
         private readonly IDiscoverShards listShards;
         private readonly ILogger<WorkerScheduler> logger;
-        private readonly ILeaseRegistry registry;
         private readonly CancellationTokenSource stoppingToken = new CancellationTokenSource();
-        private readonly ApplicationConfiguration applicationConfiguration;
         private readonly ConcurrentDictionary<string, Task> workerTasks = new ConcurrentDictionary<string, Task>();
 
         public WorkerScheduler(IOptions<ApplicationConfiguration> workerSchedulerConfiguration,
-            ILogger<WorkerScheduler> logger, IDiscoverShards listShards, ILeaseRegistry registry)
+            ILogger<WorkerScheduler> logger, IDiscoverShards listShards)
         {
             this.logger = logger;
             this.listShards = listShards;
-            this.registry = registry;
-            this.applicationConfiguration = workerSchedulerConfiguration.Value;
+            applicationConfiguration = workerSchedulerConfiguration.Value;
         }
 
         public void Dispose()
@@ -92,38 +89,8 @@ namespace KinesisSharp
 
         public async Task RunConsumer(string consumerId, CancellationToken token)
         {
-            this.logger.LogDebug("Starting consumer {Consumer}", consumerId);
-            while (!token.IsCancellationRequested)
-            {
-                var currentLeaseResponse = await registry.RecoverLeaseAsync(consumerId).ConfigureAwait(false);
-                if (currentLeaseResponse.Success)
-                {
-                    logger.LogInformation("Consumer {Consumer} recovered lock for {Shard}", consumerId,
-                        currentLeaseResponse.Lease.ShardId);
-                }
-
-                else
-                {
-                    var availableShards =
-                        await listShards.GetShardsAsync(applicationConfiguration.StreamArn, token).ConfigureAwait(false);
-
-                    foreach (var shard in availableShards)
-                    {
-                        var response = await registry.TakeLeaseAsync(shard.ShardId, consumerId).ConfigureAwait(false);
-                        if (response.Success)
-                        {
-                            logger.LogInformation("Consumer {Consumer} acquired lock for {Shard}", consumerId,
-                                shard.ShardId);
-
-                            var lease = response.Lease;
-                            await registry.UpdateLeaseAsync(lease).ConfigureAwait(false);
-                            break;
-                        }
-                    }
-                }
-
-                await Task.Delay(1000, token).ConfigureAwait(false);
-            }
+            logger.LogDebug("Starting consumer {Consumer}", consumerId);
+            await Task.Delay(1000, token).ConfigureAwait(false);
         }
     }
 }

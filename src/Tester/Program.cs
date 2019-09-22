@@ -9,7 +9,6 @@ using Amazon.Kinesis.Model;
 using Json.Net;
 using KinesisSharp;
 using KinesisSharp.Configuration;
-using KinesisSharp.Lease;
 using KinesisSharp.Lease.Registry;
 using KinesisSharp.Processor;
 using KinesisSharp.Shards;
@@ -59,14 +58,14 @@ namespace Tester
 
             //services.AddHostedService<WorkerScheduler>();
 //            services.AddHostedService<WorkerService>();
-  //          services.AddHostedService<WorkerService>();
-    //        services.AddHostedService<WorkerService>();
+            //          services.AddHostedService<WorkerService>();
+            //        services.AddHostedService<WorkerService>();
             services.AddHostedService<WorkerService>();
 
-            services.AddSingleton<ILeaseRegistryQuery, InMemoryLeaseRegistryQuery>();
+            services.AddSingleton<ILeaseRegistryQuery, InMemoryLeaseRegistry>();
+            services.AddSingleton<ILeaseRegistryCommand, InMemoryLeaseRegistry>();
             services.AddSingleton<IRecordsProcessor, SampleProcessor>();
             services.AddSingleton<IDiscoverShards, DiscoverShards>();
-            services.AddSingleton<ILeaseRegistry, InMemoryLeaseRegistry>();
         }
 
         private static ISession CreateLocalStackSession()

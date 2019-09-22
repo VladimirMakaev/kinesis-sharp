@@ -10,9 +10,13 @@ namespace Tests.Mocks
 {
     public class InMemoryDiscoverShards : IDiscoverShards
     {
-        private readonly Shard[] shards;
+        private readonly IEnumerable<Shard> shards;
 
-        public InMemoryDiscoverShards(params Shard[] shards)
+        public InMemoryDiscoverShards(params Shard[] shards) : this((IEnumerable<Shard>) shards)
+        {
+        }
+
+        public InMemoryDiscoverShards(IEnumerable<Shard> shards)
         {
             this.shards = shards;
         }
