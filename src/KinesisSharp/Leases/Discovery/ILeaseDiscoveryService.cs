@@ -1,7 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-namespace KinesisSharp.Lease.Discovery
+namespace KinesisSharp.Leases.Discovery
 {
     public interface ILeaseDiscoveryService
     {

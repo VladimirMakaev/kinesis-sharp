@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace KinesisSharp.Lease
+namespace KinesisSharp.Leases
 {
     public class LeaseMatchingResult
     {

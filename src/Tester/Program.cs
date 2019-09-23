@@ -9,7 +9,7 @@ using Amazon.Kinesis.Model;
 using Json.Net;
 using KinesisSharp;
 using KinesisSharp.Configuration;
-using KinesisSharp.Lease.Registry;
+using KinesisSharp.Leases.Registry;
 using KinesisSharp.Processor;
 using KinesisSharp.Shards;
 using LocalStack.Client;

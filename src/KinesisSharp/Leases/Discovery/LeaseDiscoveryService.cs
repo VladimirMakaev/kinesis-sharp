@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 using Amazon.Kinesis.Model;
 using KinesisSharp.Common;
 using KinesisSharp.Configuration;
-using KinesisSharp.Lease.Registry;
+using KinesisSharp.Leases.Registry;
 using KinesisSharp.Shards;
 using Microsoft.Extensions.Options;
 
-namespace KinesisSharp.Lease.Discovery
+namespace KinesisSharp.Leases.Discovery
 {
     public class LeaseDiscoveryService : ILeaseDiscoveryService
     {

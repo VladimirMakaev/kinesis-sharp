@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using KinesisSharp.Common;
 
-namespace KinesisSharp.Lease.Lock
+namespace KinesisSharp.Leases.Lock
 {
     public interface IDistributedLockService
     {

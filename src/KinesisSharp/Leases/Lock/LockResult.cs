@@ -1,4 +1,4 @@
-﻿namespace KinesisSharp.Lease.Lock
+﻿namespace KinesisSharp.Leases.Lock
 {
     public class LockResult
     {

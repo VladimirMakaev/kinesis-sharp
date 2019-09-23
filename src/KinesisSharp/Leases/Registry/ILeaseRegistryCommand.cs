@@ -1,7 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-namespace KinesisSharp.Lease.Registry
+namespace KinesisSharp.Leases.Registry
 {
     public interface ILeaseRegistryCommand
     {

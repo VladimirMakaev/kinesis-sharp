@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using KinesisSharp.Configuration;
-using KinesisSharp.Lease.Registry;
+using KinesisSharp.Leases;
+using KinesisSharp.Leases.Registry;
 using KinesisSharp.Processor;
 using KinesisSharp.Records;
 using Microsoft.Extensions.Hosting;
@@ -91,7 +92,7 @@ namespace KinesisSharp
         }
 
 
-        public async Task<IKinesisShardReader> GetOrCreateReaderForLease(Lease.Lease lease, CancellationToken token)
+        public async Task<IKinesisShardReader> GetOrCreateReaderForLease(Lease lease, CancellationToken token)
         {
             if (readers.ContainsKey(lease.ShardId))
             {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace KinesisSharp.Lease.Registry
+namespace KinesisSharp.Leases.Registry
 {
     public class InMemoryLeaseRegistry : ILeaseRegistryQuery, ILeaseRegistryCommand
     {

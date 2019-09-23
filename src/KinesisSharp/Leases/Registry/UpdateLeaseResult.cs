@@ -1,4 +1,4 @@
-﻿namespace KinesisSharp.Lease.Registry
+﻿namespace KinesisSharp.Leases.Registry
 {
     public class UpdateLeaseResult
     {

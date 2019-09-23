@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using KinesisSharp;
 using KinesisSharp.Common;
 using KinesisSharp.Configuration;
-using KinesisSharp.Lease.Discovery;
-using KinesisSharp.Lease.Registry;
+using KinesisSharp.Leases.Discovery;
+using KinesisSharp.Leases.Registry;
 using Microsoft.Extensions.Options;
 using Moq;
 using Shouldly;
@@ -27,11 +27,11 @@ namespace Tests.Lease
         private readonly Mock<ILeaseRegistryQuery> queryMock;
         private readonly MockShardCollection shards;
 
-        private void SetupCurrentLeases(params KinesisSharp.Lease.Lease[] leases)
+        private void SetupCurrentLeases(params KinesisSharp.Leases.Lease[] leases)
         {
             queryMock.Setup(x => x.GetAllLeasesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ReadOnlyCollection<KinesisSharp.Lease.Lease>(leases?.ToList() ??
-                                                                               new List<KinesisSharp.Lease.Lease>()));
+                .ReturnsAsync(new ReadOnlyCollection<KinesisSharp.Leases.Lease>(leases?.ToList() ??
+                                                                               new List<KinesisSharp.Leases.Lease>()));
         }
 
         private static IOptions<ApplicationConfiguration> CreateConfiguration(
@@ -47,9 +47,9 @@ namespace Tests.Lease
             return configuration;
         }
 
-        private static KinesisSharp.Lease.Lease Lease(string shardId, string position)
+        private static KinesisSharp.Leases.Lease Lease(string shardId, string position)
         {
-            return new KinesisSharp.Lease.Lease
+            return new KinesisSharp.Leases.Lease
             {
                 ShardId = shardId,
                 Owner = "worker-1",
