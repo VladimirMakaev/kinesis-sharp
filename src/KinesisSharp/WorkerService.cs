@@ -67,7 +67,7 @@ namespace KinesisSharp
                     try
                     {
                         var shardReader = await GetOrCreateReaderForLease(lease, stoppingToken).ConfigureAwait(false);
-                        if (!shardReader.EndOfShard)
+                        while (!shardReader.EndOfShard)
                         {
                             await shardReader.ReadNextAsync(stoppingToken).ConfigureAwait(false);
 
@@ -75,11 +75,7 @@ namespace KinesisSharp
                                 new RecordProcessingContext(null, workerId.Id)).ConfigureAwait(false);
                         }
 
-
-                        if (shardReader.EndOfShard)
-                        {
-                            //TODO: Checkpoint at the end of shard
-                        }
+                        //TODO: Checkpoint at the end of shard
                     }
                     catch (Exception e)
                     {

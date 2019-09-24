@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using KinesisSharp;
+using KinesisSharp.Common;
 using KinesisSharp.Configuration;
 using KinesisSharp.Leases;
 using KinesisSharp.Leases.Lock;
@@ -17,7 +19,7 @@ using Xunit.Abstractions;
 
 namespace Tests.Lease
 {
-    public class LeaseClaimingServiceTests : ContainerBasedFixture<LeaseClaimingService>
+    public class LeaseClaimingServiceTests : ContainerBasedFixture<LeaseClaimingService>, IDisposable
     {
         public LeaseClaimingServiceTests(ITestOutputHelper outputHelper)
         {
@@ -29,6 +31,15 @@ namespace Tests.Lease
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync((string x1, KinesisSharp.Leases.Lease x2, CancellationToken x3) =>
                     UpdateLeaseResult.Success(x2));
+            currentDateTimeNow = new DateTime(2016, 1, 1);
+            timeProvider = new Mock<ITimeProvider>();
+            timeProvider.Setup(x => x.UtcNow).Returns(() => currentDateTimeNow);
+            TimerProvider.SetProvider(timeProvider.Object);
+        }
+
+        public void Dispose()
+        {
+            TimerProvider.SetProvider(new SystemTimeProvider());
         }
 
         private readonly ITestOutputHelper outputHelper;
@@ -36,6 +47,8 @@ namespace Tests.Lease
         private readonly Mock<ILeaseRegistryCommand> leaseRegistryCommandMock;
         private int maxLeasesPerClaim = 2;
         private int maxLeasesPerWorker = 5;
+        private DateTime currentDateTimeNow;
+        private readonly Mock<ITimeProvider> timeProvider;
 
         protected override IConfigurationBuilder ConfigureConfiguration(IConfigurationBuilder builder)
         {
@@ -71,18 +84,16 @@ namespace Tests.Lease
                 .ReturnsAsync(new List<KinesisSharp.Leases.Lease>(leases));
         }
 
-        private static KinesisSharp.Leases.Lease Lease(string shardId, string position, string owner = null)
+        private static KinesisSharp.Leases.Lease Lease(string shardId, string position, string owner = null,
+            DateTime? expiresOn = null)
         {
             return new KinesisSharp.Leases.Lease
             {
                 ShardId = shardId,
                 Owner = owner,
-                Checkpoint = new ShardPosition(position)
+                Checkpoint = new ShardPosition(position),
+                LockExpiresOn = expiresOn
             };
-        }
-
-        public async Task ClaimLeases_ExpiredLeases_ExpiredLeasesShouldbeTaken()
-        {
         }
 
         [Fact]
@@ -114,6 +125,45 @@ namespace Tests.Lease
 
             var result = await Subject.ClaimLeases("test", "worker-1").ConfigureAwait(false);
             result.Select(x => x.Owner).ShouldBe(new[] {"worker-1", "worker-1", "worker-1"});
+        }
+
+        [Fact]
+        public async Task ClaimLeases_ExpiredLeases_ExpiredLeasesShouldbeTaken()
+        {
+            currentDateTimeNow = new DateTime(2019, 09, 24, 10, 00, 00);
+            var expiredTime = currentDateTimeNow - TimeSpan.FromSeconds(5);
+
+            SetupLeases(
+                Lease("shard-1", ShardPosition.TrimHorizon.SequenceNumber, "worker-2"),
+                Lease("shard-2", ShardPosition.TrimHorizon.SequenceNumber, "worker-2", expiredTime),
+                Lease("shard-3", ShardPosition.TrimHorizon.SequenceNumber, "worker-3")
+            );
+
+            var result = await Subject.ClaimLeases("test", "worker-1").ConfigureAwait(false);
+
+            result.Select(x => x.ShardId).ShouldBe(new[] {"shard-2"}, true);
+        }
+
+        [Fact]
+        public async Task ClaimLeases_ExpiredLeasesOwnedByCurrentWorker_ExpiredLeasesShouldBeTaken()
+        {
+            maxLeasesPerClaim = 3;
+            maxLeasesPerWorker = 3;
+
+            currentDateTimeNow = new DateTime(2019, 09, 24, 10, 00, 00);
+            var expiredTime = currentDateTimeNow - TimeSpan.FromSeconds(5);
+
+            SetupLeases(
+                Lease("shard-1", ShardPosition.TrimHorizon.SequenceNumber, "worker-1", expiredTime),
+                Lease("shard-2", ShardPosition.TrimHorizon.SequenceNumber, "worker-1", expiredTime),
+                Lease("shard-3", ShardPosition.TrimHorizon.SequenceNumber, "worker-1", expiredTime),
+                Lease("shard-4", ShardPosition.TrimHorizon.SequenceNumber),
+                Lease("shard-5", ShardPosition.TrimHorizon.SequenceNumber)
+            );
+
+            var result = await Subject.ClaimLeases("test", "worker-1").ConfigureAwait(false);
+
+            result.Count.ShouldBe(3);
         }
 
         [Fact]

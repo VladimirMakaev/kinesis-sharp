@@ -51,33 +51,25 @@ namespace KinesisSharp.Leases
             var result = new List<Lease>(numberOfLeasesToTake);
             foreach (var lease in Utility.Shuffle(AvailableLeasesByPriority(allLeases), new Random()))
             {
-                try
+                var @lock = await lockService.LockResource(lease.ShardId, workerId,
+                    configuration.Value.LeaseLockDuration).ConfigureAwait(false);
+
+                if (@lock.IsSuccess)
                 {
-                    var @lock = await lockService.LockResource(lease.ShardId, workerId,
-                        configuration.Value.LeaseLockDuration).ConfigureAwait(false);
+                    lease.Owner = workerId;
+                    lease.LockExpiresOn = @lock.Lock.ExpiresOn;
+                    var updateLeaseResult = await leaseCommand.UpdateLease(application, lease, token)
+                        .ConfigureAwait(false);
 
-                    if (@lock.IsSuccess)
+                    if (updateLeaseResult.IsSuccess)
                     {
-                        lease.Owner = workerId;
-                        lease.LockExpiresOn = @lock.Lock.ExpiresOn;
-                        var updateLeaseResult = await leaseCommand.UpdateLease(application, lease, token)
-                            .ConfigureAwait(false);
-
-                        if (updateLeaseResult.IsSuccess)
+                        result.Add(lease);
+                        leasesTaken++;
+                        if (leasesTaken >= numberOfLeasesToTake)
                         {
-                            result.Add(lease);
-                            leasesTaken++;
-                            if (leasesTaken >= numberOfLeasesToTake)
-                            {
-                                break;
-                            }
+                            break;
                         }
                     }
-                }
-                catch (Exception e)
-                {
-                    logger.LogError(e, e.Message);
-                    throw;
                 }
             }
 
@@ -87,7 +79,7 @@ namespace KinesisSharp.Leases
         private IEnumerable<Lease> AvailableLeasesByPriority(IReadOnlyCollection<Lease> allLeases)
         {
             return allLeases
-                .Where(l => l.Owner == null || l.LockExpiresOn < TimerProvider.UtcNow);
+                .Where(l => l.Owner == null || l.LockExpiresOn != null && l.LockExpiresOn < TimerProvider.UtcNow);
         }
 
         private (int KnownWorkers, int LeasesTakenByAllWorkers, int CurrentWorkerLeases) GetStatsForAllLeases(
@@ -95,13 +87,18 @@ namespace KinesisSharp.Leases
             IEnumerable<Lease> leases)
         {
             var rest = leases.GroupBy(l => l.Owner)
-                .Select(g => new {g.Key, Count = g.Count()})
+                .Select(g => new
+                {
+                    g.Key,
+                    Count = g.Count(),
+                    Expired = g.Count(x => x.LockExpiresOn != null && x.LockExpiresOn <= TimerProvider.UtcNow)
+                })
                 .Aggregate(
                     (KnownWorkers: 1, LeasesTakenByAllWorkers: 0, CurrentWorkerLeases: 0),
                     (s, y) => (
                         s.KnownWorkers + (y.Key == workerId || y.Key == null ? 0 : 1),
-                        s.LeasesTakenByAllWorkers + (y.Key == null ? 0 : y.Count),
-                        s.CurrentWorkerLeases = y.Key == workerId ? y.Count : s.CurrentWorkerLeases
+                        s.LeasesTakenByAllWorkers + (y.Key == null ? 0 : y.Count) - y.Expired,
+                        s.CurrentWorkerLeases = y.Key == workerId ? y.Count - y.Expired : s.CurrentWorkerLeases
                     )
                 );
 
