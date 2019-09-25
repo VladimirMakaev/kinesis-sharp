@@ -1,7 +1,17 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using KinesisSharp.Common;
+using KinesisSharp.Configuration;
+using KinesisSharp.Leases;
+using KinesisSharp.Leases.Registry;
+using KinesisSharp.Processor;
+using KinesisSharp.Records;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace KinesisSharp
 {
@@ -10,9 +20,36 @@ namespace KinesisSharp
     /// </summary>
     public class WorkerService2 : IHostedService, IDisposable
     {
+        private readonly ILeaseClaimingService claimService;
+        private readonly IOptions<ApplicationConfiguration> configuration;
+        private readonly IKinesisShardReaderFactory factory;
+        private readonly ILogger<WorkerService2> logger;
+        private readonly SemaphoreSlim maxWorkerConcurrencySemaphore;
+
+        private readonly ConcurrentDictionary<string, Lease> myLeases = new ConcurrentDictionary<string, Lease>();
+        private readonly IRecordsProcessor processor;
+        private readonly ILeaseRegistryCommand registryCommand;
+        private readonly ILeaseRegistryQuery registryQuery;
         private readonly CancellationTokenSource stoppingCts = new CancellationTokenSource();
-         private Task leaseClaimTask;
-        private Task readerTask;
+        private readonly WorkerIdentifier workerId;
+        private Task leaseClaimTask;
+        private Task leaseReaderTask;
+
+
+        public WorkerService2(IOptions<ApplicationConfiguration> configuration, ILeaseClaimingService claimService,
+            IKinesisShardReaderFactory factory, IRecordsProcessor processor, ILeaseRegistryQuery registryQuery,
+            ILeaseRegistryCommand registryCommand, ILogger<WorkerService2> logger)
+        {
+            this.claimService = claimService;
+            this.factory = factory;
+            this.processor = processor;
+            this.registryQuery = registryQuery;
+            this.registryCommand = registryCommand;
+            this.logger = logger;
+            this.configuration = configuration;
+            workerId = WorkerIdentifier.New();
+            maxWorkerConcurrencySemaphore = new SemaphoreSlim(5, 5);
+        }
 
         public virtual void Dispose()
         {
@@ -26,10 +63,11 @@ namespace KinesisSharp
         public virtual Task StartAsync(CancellationToken cancellationToken)
         {
             leaseClaimTask = ExecuteLeaseClaimTask(stoppingCts.Token);
-            readerTask = ExecuteReaderTask(stoppingCts.Token);
+            leaseReaderTask = ExecuteLeaseReaderTask(stoppingCts.Token);
 
             // If the task is completed then return it, this will bubble cancellation and failure to the caller
-            var whenAny = Task.WhenAny(leaseClaimTask, readerTask);
+            var whenAny = Task.WhenAny(leaseClaimTask, leaseReaderTask);
+
             if (whenAny.IsCompleted)
             {
                 return whenAny;
@@ -67,17 +105,70 @@ namespace KinesisSharp
 
         private async Task ExecuteLeaseClaimTask(CancellationToken token)
         {
-            while (true)
+            while (!token.IsCancellationRequested)
             {
+                var myLeasesResponse = await claimService
+                    .ClaimLeases(configuration.Value.ApplicationName, workerId.Id, token)
+                    .ConfigureAwait(false);
+
+                foreach (var myLease in myLeasesResponse)
+                {
+                    myLeases.AddOrUpdate(myLease.ShardId, myLease, (key, l) => myLease);
+                }
+
                 await Task.Delay(1000, token).ConfigureAwait(false);
             }
         }
 
-        private async Task ExecuteReaderTask(CancellationToken token)
+        private async Task ExecuteLeaseReaderTask(CancellationToken token)
         {
-            while (true)
+            while (!token.IsCancellationRequested)
             {
+                logger.LogDebug("ExecuteLeaseReaderTask. Leases: {Leases}", myLeases.Select(x => x.Key));
+                foreach (var eachLease in myLeases.Values)
+                {
+                    try
+                    {
+                        await maxWorkerConcurrencySemaphore.WaitAsync(token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        ProcessLease(token, eachLease).Ignore();
+                    }
+                    finally
+                    {
+                        maxWorkerConcurrencySemaphore.Release();
+                    }
+                }
+
                 await Task.Delay(1000, token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ProcessLease(CancellationToken token, Lease eachLease)
+        {
+            var shardRef = new ShardRef(eachLease.ShardId, null);
+
+            var reader = await factory.CreateReaderAsync(shardRef, eachLease.Checkpoint, token)
+                .ConfigureAwait(false);
+
+            while (!reader.EndOfShard)
+            {
+                await reader.ReadNextAsync(token).ConfigureAwait(false);
+
+                await processor.ProcessRecordsAsync(reader.Records,
+                        new RecordProcessingContext(shardRef, workerId.Id))
+                    .ConfigureAwait(false);
+
+                /*
+                            await registryCommand.UpdateLease(configuration.Value.ApplicationName, lease, token)
+                                .ConfigureAwait(false);
+                                */
             }
         }
     }

@@ -8,6 +8,9 @@ namespace KinesisSharp.Configuration
 
         public int MaxLeasesPerWorker { get; set; } = 5;
 
+        public int WorkerConcurrencyLimit { get; set; } =
+            Environment.ProcessorCount / 2 == 0 ? 1 : Environment.ProcessorCount / 2;
+
         public TimeSpan LeaseLockDuration { get; set; } = TimeSpan.FromSeconds(30);
     }
 }

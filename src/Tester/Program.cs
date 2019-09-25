@@ -9,8 +9,11 @@ using Amazon.Kinesis.Model;
 using Json.Net;
 using KinesisSharp;
 using KinesisSharp.Configuration;
+using KinesisSharp.Leases;
+using KinesisSharp.Leases.Lock;
 using KinesisSharp.Leases.Registry;
 using KinesisSharp.Processor;
+using KinesisSharp.Records;
 using KinesisSharp.Shards;
 using LocalStack.Client;
 using LocalStack.Client.Contracts;
@@ -60,8 +63,11 @@ namespace Tester
 //            services.AddHostedService<WorkerService>();
             //          services.AddHostedService<WorkerService>();
             //        services.AddHostedService<WorkerService>();
-            services.AddHostedService<WorkerService>();
+            services.AddHostedService<WorkerService2>();
 
+            services.AddSingleton<IKinesisShardReaderFactory, KinesisShardReaderFactory>();
+            services.AddSingleton<IDistributedLockService, InMemoryLockService>();
+            services.AddSingleton<ILeaseClaimingService, LeaseClaimingService>();
             services.AddSingleton<ILeaseRegistryQuery, InMemoryLeaseRegistry>();
             services.AddSingleton<ILeaseRegistryCommand, InMemoryLeaseRegistry>();
             services.AddSingleton<IRecordsProcessor, SampleProcessor>();
