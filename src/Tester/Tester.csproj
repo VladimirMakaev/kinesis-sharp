@@ -7,6 +7,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\KinesisSharp\KinesisSharp.csproj" />
+      <ProjectReference Include="..\Tests\Tests.csproj" />
     </ItemGroup>
 
     <ItemGroup>
