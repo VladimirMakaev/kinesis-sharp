@@ -3,23 +3,20 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.Kinesis;
 using Amazon.Kinesis.Model;
-using Amazon.Kinesis.Model.Internal.MarshallTransformations;
 using KinesisSharp.Common;
 
 namespace KinesisSharp.Records
 {
     public class StubKinesisShardReaderFactory : IKinesisShardReaderFactory
     {
-        private readonly int messagesPerShard;
+        private static long globalSequence;
         private readonly int batchLimit;
-
-        private static long globalSequence = 0;
+        private readonly int messagesPerShard;
 
         public StubKinesisShardReaderFactory(int messagesPerShard, int batchLimit)
         {
@@ -30,17 +27,18 @@ namespace KinesisSharp.Records
         public Task<IKinesisShardReader> CreateReaderAsync(ShardRef shardRef, ShardPosition position,
             CancellationToken token = default)
         {
-            return Task.FromResult((IKinesisShardReader)new StubKinesisShardReader(messagesPerShard, messagesPerShard * 100, batchLimit,
+            return Task.FromResult((IKinesisShardReader) new StubKinesisShardReader(messagesPerShard,
+                messagesPerShard * 100, batchLimit,
                 shardRef.ShardId));
         }
 
         private class StubKinesisShardReader : IKinesisShardReader
         {
-            private readonly int numberOfRecords;
             private readonly int batchLimit;
+            private readonly int lengthInMillis;
+            private readonly int numberOfRecords;
             private readonly string shardId;
             private int currentPointer;
-            private int lengthInMillis;
 
             public StubKinesisShardReader(int numberOfRecords, int lengthInMillis, int batchLimit, string shardId)
             {
@@ -55,24 +53,25 @@ namespace KinesisSharp.Records
             }
 
 
-            public bool EndOfShard { get; }
+            public bool EndOfShard { get; private set; }
             public long? MillisBehindLatest { get; private set; }
             public IReadOnlyList<Record> Records { get; }
 
             public Task ReadNextAsync(CancellationToken token = default)
             {
-                var messages = Enumerable.Range(currentPointer, batchLimit).Select(x => new Record()
+                var messages = Enumerable.Range(currentPointer, batchLimit).Select(x => new Record
                 {
                     ApproximateArrivalTimestamp =
-                        TimerProvider.UtcNow - TimeSpan.FromMilliseconds(this.MillisBehindLatest ?? 0),
+                        TimerProvider.UtcNow - TimeSpan.FromMilliseconds(MillisBehindLatest ?? 0),
                     Data = new MemoryStream(Encoding.UTF8.GetBytes($"Shard-{shardId}-Message-{x}")),
                     EncryptionType = EncryptionType.NONE,
                     PartitionKey = "SomeKey",
                     SequenceNumber = $"{Interlocked.Increment(ref globalSequence)}"
                 }).ToList();
 
-                this.currentPointer += messages.Count;
-                this.MillisBehindLatest = ((numberOfRecords - currentPointer) * lengthInMillis) / this.numberOfRecords;
+                currentPointer += messages.Count;
+                MillisBehindLatest = (numberOfRecords - currentPointer) * lengthInMillis / numberOfRecords;
+                EndOfShard = currentPointer >= numberOfRecords;
                 return Task.CompletedTask;
             }
         }

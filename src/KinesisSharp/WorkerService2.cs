@@ -152,6 +152,7 @@ namespace KinesisSharp
 
         private async Task ProcessLease(CancellationToken token, Lease eachLease)
         {
+            logger.LogDebug("Starting to process lease for {ShardId}", eachLease.ShardId);
             var shardRef = new ShardRef(eachLease.ShardId, null);
 
             var reader = await factory.CreateReaderAsync(shardRef, eachLease.Checkpoint, token)
@@ -159,17 +160,23 @@ namespace KinesisSharp
 
             while (!reader.EndOfShard)
             {
+                logger.LogDebug("Reading next batch from {ShardId}", shardRef.ShardId);
                 await reader.ReadNextAsync(token).ConfigureAwait(false);
 
                 await processor.ProcessRecordsAsync(reader.Records,
                         new RecordProcessingContext(shardRef, workerId.Id))
                     .ConfigureAwait(false);
 
-                /*
-                            await registryCommand.UpdateLease(configuration.Value.ApplicationName, lease, token)
-                                .ConfigureAwait(false);
-                                */
+                eachLease.Checkpoint =
+                    new ShardPosition(reader.Records.Select(x => x.SequenceNumber).LastOrDefault() ?? "0");
+
+                await registryCommand.UpdateLease(configuration.Value.ApplicationName, eachLease, token)
+                    .ConfigureAwait(false);
             }
+
+            eachLease.Checkpoint = ShardPosition.ShardEnd;
+            await registryCommand.UpdateLease(configuration.Value.ApplicationName, eachLease, token)
+                .ConfigureAwait(false);
         }
     }
 }

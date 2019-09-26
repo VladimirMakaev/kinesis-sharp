@@ -10,6 +10,7 @@ using Json.Net;
 using KinesisSharp;
 using KinesisSharp.Configuration;
 using KinesisSharp.Leases;
+using KinesisSharp.Leases.Discovery;
 using KinesisSharp.Leases.Lock;
 using KinesisSharp.Leases.Registry;
 using KinesisSharp.Processor;
@@ -21,6 +22,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Tests.Mocks;
 
 namespace Tester
 {
@@ -34,7 +36,8 @@ namespace Tester
                 {
                     {"Logging:LogLevel:Default", "Debug"},
                     {"Kinesis:NumberOfWorkers", "2"},
-                    {"Kinesis:StreamArn", "reader-stream"}
+                    {"Kinesis:StreamArn", "reader-stream"},
+                    {"Kinesis:ApplicationName", "tester-application"}
                 }))
                 .ConfigureServices(ConfigureServices)
                 .UseConsoleLifetime()
@@ -53,6 +56,22 @@ namespace Tester
 
             services.AddOptions();
 
+            services.AddSingleton<IDiscoverShards>(p =>
+            {
+                var shards = new MockShardCollection();
+                shards.Create("shard-1", 0, 10);
+                shards.Create("shard-2", 10, 20);
+                shards.Create("shard-3", 30, 40);
+                shards.Create("shard-4", 50, 60);
+                shards.Create("shard-5", 60, 70);
+                shards.Create("shard-6", 70, 80);
+                shards.Merge("shard-7", "shard-3", "shard-4", 100);
+                shards.Merge("shard-8", "shard-7", "shard-5", 200);
+                shards.Merge("shard-9", "shard-1", "shard-2", 300);
+                shards.RemoveAt(0); //Make shard broken
+                return new InMemoryDiscoverShards(shards);
+            });
+
             services.Configure<ApplicationConfiguration>(host.Configuration.GetSection("Kinesis"));
             services.Configure<StreamConfiguration>(host.Configuration.GetSection("Kinesis"));
 
@@ -64,14 +83,19 @@ namespace Tester
             //          services.AddHostedService<WorkerService>();
             //        services.AddHostedService<WorkerService>();
             services.AddHostedService<WorkerService2>();
+            services.AddHostedService<LeaseDiscoveryWorker>();
 
+            services.AddSingleton<ILeaseDiscoveryService, LeaseDiscoveryService>();
             services.AddSingleton<IKinesisShardReaderFactory, KinesisShardReaderFactory>();
             services.AddSingleton<IDistributedLockService, InMemoryLockService>();
             services.AddSingleton<ILeaseClaimingService, LeaseClaimingService>();
-            services.AddSingleton<ILeaseRegistryQuery, InMemoryLeaseRegistry>();
-            services.AddSingleton<ILeaseRegistryCommand, InMemoryLeaseRegistry>();
+            services.AddSingleton<InMemoryLeaseRegistry>();
+
+            services.AddSingleton<ILeaseRegistryQuery>(p => p.GetRequiredService<InMemoryLeaseRegistry>());
+            services.AddSingleton<ILeaseRegistryCommand>(p => p.GetRequiredService<InMemoryLeaseRegistry>());
+
             services.AddSingleton<IRecordsProcessor, SampleProcessor>();
-            services.AddSingleton<IDiscoverShards, DiscoverShards>();
+            //services.AddSingleton<IDiscoverShards, DiscoverShards>();
         }
 
         private static ISession CreateLocalStackSession()

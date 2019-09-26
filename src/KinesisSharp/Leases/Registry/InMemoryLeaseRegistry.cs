@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using KinesisSharp.Common;
 
 namespace KinesisSharp.Leases.Registry
 {
@@ -44,17 +45,26 @@ namespace KinesisSharp.Leases.Registry
 
         public async Task<IReadOnlyCollection<Lease>> GetAllLeasesAsync(string application, CancellationToken token)
         {
-            var allLeases = sharedMemory[application];
-            return new ReadOnlyCollection<Lease>(await Task.FromResult(allLeases.Values.ToList())
-                .ConfigureAwait(false));
+            if (sharedMemory.TryGetValue(application, out var allLeases))
+            {
+                return new ReadOnlyCollection<Lease>(await Task.FromResult(allLeases.Values.ToList())
+                    .ConfigureAwait(false));
+            }
+
+            return Empty<Lease>.ReadOnlyList;
         }
+
 
         public async Task<IReadOnlyCollection<Lease>> GetAssignedLeasesAsync(string application, string workerId,
             CancellationToken token)
         {
-            var allLeases = sharedMemory[application];
-            var workerLeases = allLeases.Values.Where(l => l.Owner == workerId).ToList();
-            return await Task.FromResult(new ReadOnlyCollection<Lease>(workerLeases)).ConfigureAwait(false);
+            if (sharedMemory.TryGetValue(application, out var allLeases))
+            {
+                var workerLeases = allLeases.Values.Where(l => l.Owner == workerId).ToList();
+                return await Task.FromResult(new ReadOnlyCollection<Lease>(workerLeases)).ConfigureAwait(false);
+            }
+
+            return Empty<Lease>.ReadOnlyList;
         }
     }
 }
