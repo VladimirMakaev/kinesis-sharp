@@ -32,7 +32,7 @@ namespace KinesisSharp
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            while (!stoppingToken.IsCancellationRequested)
+            //while (!stoppingToken.IsCancellationRequested)
             {
                 var response = await leaseDiscoveryService.ResolveLeasesForShards(stoppingToken)
                     .ConfigureAwait(false);

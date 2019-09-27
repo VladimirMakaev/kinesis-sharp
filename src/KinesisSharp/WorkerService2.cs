@@ -48,7 +48,7 @@ namespace KinesisSharp
             this.logger = logger;
             this.configuration = configuration;
             workerId = WorkerIdentifier.New();
-            maxWorkerConcurrencySemaphore = new SemaphoreSlim(5, 5);
+            maxWorkerConcurrencySemaphore = new SemaphoreSlim(1, 1);
         }
 
         public virtual void Dispose()
@@ -130,6 +130,8 @@ namespace KinesisSharp
                     try
                     {
                         await maxWorkerConcurrencySemaphore.WaitAsync(token).ConfigureAwait(false);
+                        logger.LogDebug("Entered Semaphore. Count: {Count}",
+                            maxWorkerConcurrencySemaphore.CurrentCount);
                     }
                     catch (OperationCanceledException)
                     {
@@ -167,14 +169,19 @@ namespace KinesisSharp
                         new RecordProcessingContext(shardRef, workerId.Id))
                     .ConfigureAwait(false);
 
-                eachLease.Checkpoint =
-                    new ShardPosition(reader.Records.Select(x => x.SequenceNumber).LastOrDefault() ?? "0");
+
+                if (reader.Records.Count > 0)
+                {
+                    eachLease.Checkpoint =
+                        new ShardPosition(reader.Records.Select(x => x.SequenceNumber).Last());
+                }
 
                 await registryCommand.UpdateLease(configuration.Value.ApplicationName, eachLease, token)
                     .ConfigureAwait(false);
             }
 
             eachLease.Checkpoint = ShardPosition.ShardEnd;
+
             await registryCommand.UpdateLease(configuration.Value.ApplicationName, eachLease, token)
                 .ConfigureAwait(false);
         }

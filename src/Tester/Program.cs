@@ -86,7 +86,7 @@ namespace Tester
             services.AddHostedService<LeaseDiscoveryWorker>();
 
             services.AddSingleton<ILeaseDiscoveryService, LeaseDiscoveryService>();
-            services.AddSingleton<IKinesisShardReaderFactory, KinesisShardReaderFactory>();
+            services.AddSingleton<IKinesisShardReaderFactory>(new StubKinesisShardReaderFactory(10000, 100));
             services.AddSingleton<IDistributedLockService, InMemoryLockService>();
             services.AddSingleton<ILeaseClaimingService, LeaseClaimingService>();
             services.AddSingleton<InMemoryLeaseRegistry>();

@@ -24,12 +24,13 @@ namespace KinesisSharp.Records
             this.batchLimit = batchLimit;
         }
 
-        public Task<IKinesisShardReader> CreateReaderAsync(ShardRef shardRef, ShardPosition position,
+        public async Task<IKinesisShardReader> CreateReaderAsync(ShardRef shardRef, ShardPosition position,
             CancellationToken token = default)
         {
-            return Task.FromResult((IKinesisShardReader) new StubKinesisShardReader(messagesPerShard,
+            await Task.CompletedTask;
+            return new StubKinesisShardReader(position, messagesPerShard,
                 messagesPerShard * 100, batchLimit,
-                shardRef.ShardId));
+                shardRef.ShardId);
         }
 
         private class StubKinesisShardReader : IKinesisShardReader
@@ -40,12 +41,13 @@ namespace KinesisSharp.Records
             private readonly string shardId;
             private int currentPointer;
 
-            public StubKinesisShardReader(int numberOfRecords, int lengthInMillis, int batchLimit, string shardId)
+            public StubKinesisShardReader(ShardPosition position, int numberOfRecords, int lengthInMillis,
+                int batchLimit, string shardId)
             {
                 this.numberOfRecords = numberOfRecords;
                 this.batchLimit = batchLimit;
                 this.shardId = shardId;
-                EndOfShard = false;
+                EndOfShard = position.IsEnded;
                 MillisBehindLatest = lengthInMillis;
                 this.lengthInMillis = lengthInMillis;
                 Records = new ReadOnlyCollection<Record>(new List<Record>());
@@ -55,7 +57,7 @@ namespace KinesisSharp.Records
 
             public bool EndOfShard { get; private set; }
             public long? MillisBehindLatest { get; private set; }
-            public IReadOnlyList<Record> Records { get; }
+            public IReadOnlyList<Record> Records { get; private set; }
 
             public Task ReadNextAsync(CancellationToken token = default)
             {
@@ -72,6 +74,7 @@ namespace KinesisSharp.Records
                 currentPointer += messages.Count;
                 MillisBehindLatest = (numberOfRecords - currentPointer) * lengthInMillis / numberOfRecords;
                 EndOfShard = currentPointer >= numberOfRecords;
+                Records = new ReadOnlyCollection<Record>(messages);
                 return Task.CompletedTask;
             }
         }
