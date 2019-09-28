@@ -79,7 +79,8 @@ namespace KinesisSharp.Leases
         private IEnumerable<Lease> AvailableLeasesByPriority(IReadOnlyCollection<Lease> allLeases)
         {
             return allLeases
-                .Where(l => l.Owner == null || l.LockExpiresOn != null && l.LockExpiresOn < TimerProvider.UtcNow);
+                .Where(l => l.Owner == null || l.LockExpiresOn != null && l.LockExpiresOn < TimerProvider.UtcNow &&
+                            !l.Checkpoint.IsEnded);
         }
 
         private (int KnownWorkers, int LeasesTakenByAllWorkers, int CurrentWorkerLeases) GetStatsForAllLeases(

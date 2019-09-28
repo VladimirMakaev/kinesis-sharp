@@ -1,7 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using KinesisSharp.Common;
 using KinesisSharp.Configuration;
 using KinesisSharp.Leases;
 using KinesisSharp.Leases.Registry;
@@ -13,108 +15,176 @@ using Microsoft.Extensions.Options;
 
 namespace KinesisSharp
 {
-    public class WorkerService : BackgroundService
+    /// <summary>
+    ///     Base class for implementing a long running <see cref="IHostedService" />.
+    /// </summary>
+    public class WorkerService : IHostedService, IDisposable
     {
+        private readonly ILeaseClaimingService claimService;
         private readonly IOptions<ApplicationConfiguration> configuration;
-        private readonly ILeaseRegistryCommand leaseCommand;
-        private readonly ILeaseRegistryQuery leaseQuery;
+        private readonly IKinesisShardReaderFactory factory;
         private readonly ILogger<WorkerService> logger;
-        private readonly IKinesisShardReaderFactory readerFactory;
+        private readonly SemaphoreSlim maxWorkerConcurrencySemaphore = new SemaphoreSlim(5);
 
-        private readonly IDictionary<string, IKinesisShardReader> readers =
-            new Dictionary<string, IKinesisShardReader>();
-
-        private readonly IRecordsProcessor recordsProcessor;
+        private readonly ConcurrentDictionary<string, Lease> myLeases = new ConcurrentDictionary<string, Lease>();
+        private readonly IRecordsProcessor processor;
+        private readonly ILeaseRegistryCommand registryCommand;
+        private readonly ILeaseRegistryQuery registryQuery;
+        private readonly CancellationTokenSource stoppingCts = new CancellationTokenSource();
         private readonly WorkerIdentifier workerId;
+        private Task leaseClaimTask;
+        private Task leaseReaderTask;
 
-        public WorkerService(IOptions<ApplicationConfiguration> configuration,
-            ILeaseRegistryQuery leaseQuery, ILeaseRegistryCommand leaseCommand, IRecordsProcessor recordsProcessor,
-            ILogger<WorkerService> logger,
-            IKinesisShardReaderFactory readerFactory)
+
+        public WorkerService(IOptions<ApplicationConfiguration> configuration, ILeaseClaimingService claimService,
+            IKinesisShardReaderFactory factory, IRecordsProcessor processor, ILeaseRegistryQuery registryQuery,
+            ILeaseRegistryCommand registryCommand, ILogger<WorkerService> logger)
         {
+            this.claimService = claimService;
+            this.factory = factory;
+            this.processor = processor;
+            this.registryQuery = registryQuery;
+            this.registryCommand = registryCommand;
+            this.logger = logger;
             this.configuration = configuration;
             workerId = WorkerIdentifier.New();
-            this.leaseQuery = leaseQuery;
-            this.leaseCommand = leaseCommand;
-            this.recordsProcessor = recordsProcessor;
-            this.logger = logger;
-            this.readerFactory = readerFactory;
         }
 
-        public override Task StartAsync(CancellationToken cancellationToken)
+        public virtual void Dispose()
         {
-            logger.LogInformation("Starting Worker {WorkerId}", workerId.Id);
-            return base.StartAsync(cancellationToken);
+            stoppingCts.Cancel();
         }
 
-        public override Task StopAsync(CancellationToken cancellationToken)
+        /// <summary>
+        ///     Triggered when the application host is ready to start the service.
+        /// </summary>
+        /// <param name="cancellationToken">Indicates that the start process has been aborted.</param>
+        public virtual Task StartAsync(CancellationToken cancellationToken)
         {
-            logger.LogInformation("Stopping Worker {WorkerId}", workerId.Id);
-            return base.StopAsync(cancellationToken);
-        }
+            leaseClaimTask = ExecuteLeaseClaimTask(stoppingCts.Token);
+            leaseReaderTask = ExecuteLeaseReaderTask(stoppingCts.Token);
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            while (true)
+            // If the task is completed then return it, this will bubble cancellation and failure to the caller
+            var whenAny = Task.WhenAny(leaseClaimTask, leaseReaderTask);
+
+            if (whenAny.IsCompleted)
             {
-                var config = configuration.Value;
+                return whenAny;
+            }
 
-                var leases = await leaseQuery.GetAssignedLeasesAsync(config.ApplicationName, workerId.Id, stoppingToken)
+            // Otherwise it's running
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        ///     Triggered when the application host is performing a graceful shutdown.
+        /// </summary>
+        /// <param name="cancellationToken">Indicates that the shutdown process should no longer be graceful.</param>
+        public virtual async Task StopAsync(CancellationToken cancellationToken)
+        {
+            // Stop called without start
+            if (leaseClaimTask == null)
+            {
+                return;
+            }
+
+            try
+            {
+                // Signal cancellation to the executing method
+                stoppingCts.Cancel();
+            }
+            finally
+            {
+                // Wait until the task completes or the stop token triggers
+                await Task.WhenAny(leaseClaimTask, Task.Delay(Timeout.Infinite, cancellationToken))
+                    .ConfigureAwait(false);
+            }
+        }
+
+
+        private async Task ExecuteLeaseClaimTask(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                var myLeasesResponse = await claimService
+                    .ClaimLeases(configuration.Value.ApplicationName, workerId.Id, token)
                     .ConfigureAwait(false);
 
-                foreach (var lease in leases)
+                foreach (var myLease in myLeasesResponse)
+                {
+                    myLeases.AddOrUpdate(myLease.ShardId, myLease, (key, l) => myLease);
+                }
+
+                await Task.Delay(1000, token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ExecuteLeaseReaderTask(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                foreach (var eachLease in await registryQuery
+                    .GetAssignedLeasesAsync(configuration.Value.ApplicationName, workerId.Id, token)
+                    .ConfigureAwait(false))
                 {
                     try
                     {
-                        var shardReader = await GetOrCreateReaderForLease(lease, stoppingToken).ConfigureAwait(false);
-                        while (!shardReader.EndOfShard)
-                        {
-                            await shardReader.ReadNextAsync(stoppingToken).ConfigureAwait(false);
-
-                            await recordsProcessor.ProcessRecordsAsync(shardReader.Records,
-                                new RecordProcessingContext(null, workerId.Id)).ConfigureAwait(false);
-                        }
-
-                        //TODO: Checkpoint at the end of shard
+                        await maxWorkerConcurrencySemaphore.WaitAsync(token).ConfigureAwait(false);
+                        logger.LogDebug("Entered Semaphore. Count: {Count}",
+                            maxWorkerConcurrencySemaphore.CurrentCount);
                     }
-                    catch (Exception e)
+                    catch (OperationCanceledException)
                     {
-                        logger.LogError(e, e.Message);
+                        return;
                     }
 
-                    await Task.Delay(configuration.Value.ShardPollDelay, stoppingToken).ConfigureAwait(false);
+                    try
+                    {
+                        ProcessLease(token, eachLease).Ignore();
+                    }
+                    finally
+                    {
+                        maxWorkerConcurrencySemaphore.Release();
+                    }
                 }
+
+                await Task.Delay(1000, token).ConfigureAwait(false);
             }
         }
 
-
-        public async Task<IKinesisShardReader> GetOrCreateReaderForLease(Lease lease, CancellationToken token)
+        private async Task ProcessLease(CancellationToken token, Lease eachLease)
         {
-            if (readers.ContainsKey(lease.ShardId))
-            {
-                return readers[lease.ShardId];
-            }
+            logger.LogDebug("Starting to process lease for {ShardId}", eachLease.ShardId);
+            var shardRef = new ShardRef(eachLease.ShardId, null);
 
-            var result = await readerFactory
-                .CreateReaderAsync(new ShardRef(lease.ShardId, null), lease.Checkpoint, token)
+            var reader = await factory.CreateReaderAsync(shardRef, eachLease.Checkpoint, token)
                 .ConfigureAwait(false);
-            readers[lease.ShardId] = result;
-            return result;
-        }
-    }
 
-    public class WorkerIdentifier
-    {
-        private WorkerIdentifier(string id)
-        {
-            Id = id;
-        }
+            while (!reader.EndOfShard)
+            {
+                logger.LogDebug("Reading next batch from {ShardId}", shardRef.ShardId);
+                await reader.ReadNextAsync(token).ConfigureAwait(false);
 
-        public string Id { get; }
+                await processor.ProcessRecordsAsync(reader.Records,
+                        new RecordProcessingContext(shardRef, workerId.Id))
+                    .ConfigureAwait(false);
 
-        public static WorkerIdentifier New()
-        {
-            return new WorkerIdentifier("workerId-" + Guid.NewGuid().ToString("N"));
+
+                if (reader.Records.Count > 0)
+                {
+                    eachLease.Checkpoint =
+                        new ShardPosition(reader.Records.Select(x => x.SequenceNumber).Last());
+                }
+
+                await registryCommand.UpdateLease(configuration.Value.ApplicationName, eachLease, token)
+                    .ConfigureAwait(false);
+            }
+
+            eachLease.Checkpoint = ShardPosition.ShardEnd;
+            logger.LogWarning("{Shard} has finished", eachLease.ShardId);
+
+            await registryCommand.UpdateLease(configuration.Value.ApplicationName, eachLease, token)
+                .ConfigureAwait(false);
         }
     }
 }

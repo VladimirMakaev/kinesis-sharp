@@ -34,5 +34,10 @@
         {
             return SequenceNumber != null ? SequenceNumber.GetHashCode() : 0;
         }
+
+        public override string ToString()
+        {
+            return SequenceNumber;
+        }
     }
 }

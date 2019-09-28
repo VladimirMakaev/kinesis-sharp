@@ -60,7 +60,7 @@ namespace KinesisSharp.Leases.Registry
         {
             if (sharedMemory.TryGetValue(application, out var allLeases))
             {
-                var workerLeases = allLeases.Values.Where(l => l.Owner == workerId).ToList();
+                var workerLeases = allLeases.Values.Where(l => l.Owner == workerId && !l.Checkpoint.IsEnded).ToList();
                 return await Task.FromResult(new ReadOnlyCollection<Lease>(workerLeases)).ConfigureAwait(false);
             }
 

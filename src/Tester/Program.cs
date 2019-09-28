@@ -68,7 +68,6 @@ namespace Tester
                 shards.Merge("shard-7", "shard-3", "shard-4", 100);
                 shards.Merge("shard-8", "shard-7", "shard-5", 200);
                 shards.Merge("shard-9", "shard-1", "shard-2", 300);
-                shards.RemoveAt(0); //Make shard broken
                 return new InMemoryDiscoverShards(shards);
             });
 
@@ -82,7 +81,7 @@ namespace Tester
 //            services.AddHostedService<WorkerService>();
             //          services.AddHostedService<WorkerService>();
             //        services.AddHostedService<WorkerService>();
-            services.AddHostedService<WorkerService2>();
+            services.AddHostedService<WorkerService>();
             services.AddHostedService<LeaseDiscoveryWorker>();
 
             services.AddSingleton<ILeaseDiscoveryService, LeaseDiscoveryService>();

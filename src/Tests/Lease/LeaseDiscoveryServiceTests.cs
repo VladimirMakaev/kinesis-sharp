@@ -31,7 +31,7 @@ namespace Tests.Lease
         {
             queryMock.Setup(x => x.GetAllLeasesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ReadOnlyCollection<KinesisSharp.Leases.Lease>(leases?.ToList() ??
-                                                                               new List<KinesisSharp.Leases.Lease>()));
+                                                                                new List<KinesisSharp.Leases.Lease>()));
         }
 
         private static IOptions<ApplicationConfiguration> CreateConfiguration(
@@ -283,6 +283,59 @@ namespace Tests.Lease
             var result = await subject.ResolveLeasesForShards().ConfigureAwait(false);
 
             result.LeasesToBeCreated.Select(l => l.ShardId).ShouldBe(new[] {"shard-2", "shard-4"}, true);
+        }
+
+
+        //     Shard setup is the following (bottom to top):
+        //         
+        //       |              |            |
+        //       |              |            |
+        //300   /9\             |            |
+        //     /   \            |            |
+        //    |     |           |            |
+        //    |     |           |            |
+        //200 |     |          /8\           |
+        //    |     |         /   \          |
+        //    |     |        /     \         |
+        //    |     |       |       |        |
+        //    |     |       |       |        |
+        //100 |     |      /7\      |        |
+        //    |     |     /   \     |        |
+        //    |     |    |     |    |        |
+        //    |     |    |     |    |        |
+        //    1     2    3     4    5        6
+        [Fact]
+        public async Task LeasesToBeDeleted_LeasesAreRead_ShouldBeDeleted()
+        {
+            shards.Create("shard-1", 0, 10);
+            shards.Create("shard-2", 10, 20);
+            shards.Create("shard-3", 30, 40);
+            shards.Create("shard-4", 50, 60);
+            shards.Create("shard-5", 60, 70);
+            shards.Create("shard-6", 70, 80);
+            shards.Merge("shard-7", "shard-3", "shard-4", 100);
+            shards.Merge("shard-8", "shard-7", "shard-5", 200);
+            shards.Merge("shard-9", "shard-1", "shard-2", 300);
+
+            SetupCurrentLeases(
+                Lease("shard-1", ShardPosition.ShardEnd.SequenceNumber),
+                Lease("shard-2", ShardPosition.ShardEnd.SequenceNumber),
+                Lease("shard-3", ShardPosition.ShardEnd.SequenceNumber),
+                Lease("shard-4", ShardPosition.ShardEnd.SequenceNumber),
+                Lease("shard-5", ShardPosition.ShardEnd.SequenceNumber),
+                Lease("shard-6", ShardPosition.ShardEnd.SequenceNumber)
+            );
+
+            var subject = CreateSubject();
+
+            var response = await subject.ResolveLeasesForShards();
+
+            response.LeasesToBeCreated.Select(s => s.ShardId).ShouldBe(
+                new[]
+                {
+                    "shard-7",
+                    "shard-9"
+                }, true);
         }
 
 
