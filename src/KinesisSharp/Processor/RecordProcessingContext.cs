@@ -2,14 +2,13 @@
 {
     public class RecordProcessingContext
     {
-        public RecordProcessingContext(ShardRef shardRef, string workerId)
+        public RecordProcessingContext(string shardId, string workerId)
         {
-            ShardRef = shardRef;
+            ShardId = shardId;
             WorkerId = workerId;
         }
 
-        public ShardRef ShardRef { get; }
-
+        public string ShardId { get; }
         public string WorkerId { get; }
     }
 }

@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using KinesisSharp;
 using KinesisSharp.Records;
 using Xunit;
@@ -21,7 +20,7 @@ namespace Tests.Mocks
         {
             var factory = new StubKinesisShardReaderFactory(10000, 100);
 
-            var result = await factory.CreateReaderAsync(new ShardRef("shard-1", null), ShardPosition.TrimHorizon)
+            var result = await factory.CreateReaderAsync("shard-1", ShardPosition.TrimHorizon)
                 .ConfigureAwait(false);
 
             while (!result.EndOfShard)

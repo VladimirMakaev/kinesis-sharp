@@ -24,13 +24,13 @@ namespace KinesisSharp.Records
             this.batchLimit = batchLimit;
         }
 
-        public async Task<IKinesisShardReader> CreateReaderAsync(ShardRef shardRef, ShardPosition position,
+        public async Task<IKinesisShardReader> CreateReaderAsync(string shardId, ShardPosition position,
             CancellationToken token = default)
         {
             await Task.CompletedTask;
             return new StubKinesisShardReader(position, messagesPerShard,
                 messagesPerShard * 100, batchLimit,
-                shardRef.ShardId);
+                shardId);
         }
 
         private class StubKinesisShardReader : IKinesisShardReader

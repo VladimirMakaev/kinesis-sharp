@@ -17,8 +17,8 @@ namespace KinesisSharp.Processor
         public Task ProcessRecordsAsync(IReadOnlyList<Record> records, RecordProcessingContext context)
         {
             logger.LogInformation("Retrieved {Count} records", records.Count);
-            //return Task.Delay(10);
-            return Task.CompletedTask;
+            return Task.Delay(10);
+            //return Task.CompletedTask;
         }
     }
 }

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Amazon;
 using Amazon.Kinesis;
 using Amazon.Kinesis.Model;
 using Json.Net;
@@ -12,16 +13,17 @@ using KinesisSharp.Configuration;
 using KinesisSharp.Leases;
 using KinesisSharp.Leases.Discovery;
 using KinesisSharp.Leases.Lock;
+using KinesisSharp.Leases.Lock.Redis;
 using KinesisSharp.Leases.Registry;
 using KinesisSharp.Processor;
 using KinesisSharp.Records;
 using KinesisSharp.Shards;
-using LocalStack.Client;
-using LocalStack.Client.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
+using Tester.Processor;
 using Tests.Mocks;
 
 namespace Tester
@@ -30,31 +32,39 @@ namespace Tester
     {
         private static async Task Main(string[] args)
         {
-            //await PublishRecords("reader-stream", CreateLocalStackSession().CreateClient<AmazonKinesisClient>());
             var host = new HostBuilder()
                 .ConfigureAppConfiguration(b => b.AddInMemoryCollection(new Dictionary<string, string>
                 {
                     {"Logging:LogLevel:Default", "Debug"},
-                    {"Kinesis:NumberOfWorkers", "2"},
-                    {"Kinesis:StreamArn", "reader-stream"},
-                    {"Kinesis:ApplicationName", "tester-application"}
-                }))
+                    {"Kinesis:NumberOfWorkers", "5"},
+                    {"Kinesis:RecordsBatchLimit", "1000"},
+                    {"Kinesis:StreamArn", "shard-test-1"},
+                    {"Kinesis:ApplicationName", "shard-test-application"}
+                }).AddEnvironmentVariables())
                 .ConfigureServices(ConfigureServices)
                 .UseConsoleLifetime()
                 .Build();
 
             await host.RunAsync().ConfigureAwait(false);
-
-            //var worker = new WorkerService(streamName, session.CreateClient<AmazonKinesisClient>());
-
-            //await worker.RunAsync();
         }
 
         private static void ConfigureServices(HostBuilderContext host, IServiceCollection services)
         {
-            var session = CreateLocalStackSession();
-
             services.AddOptions();
+
+            services.Configure<ApplicationConfiguration>(host.Configuration.GetSection("Kinesis"));
+            services.Configure<StreamConfiguration>(host.Configuration.GetSection("Kinesis"));
+
+            services.AddLogging(b =>
+            {
+                b.AddConfiguration(host.Configuration.GetSection("Logging"));
+                b.AddConsole();
+            });
+            services.AddHostedService<WorkerService>();
+            services.AddHostedService<LeaseDiscoveryWorker>();
+
+            services.AddSingleton<ILeaseDiscoveryService, LeaseDiscoveryService>();
+            services.AddSingleton<ILeaseClaimingService, LeaseClaimingService>();
 
             services.AddSingleton<IDiscoverShards>(p =>
             {
@@ -70,48 +80,30 @@ namespace Tester
                 shards.Merge("shard-9", "shard-1", "shard-2", 300);
                 return new InMemoryDiscoverShards(shards);
             });
-
-            services.Configure<ApplicationConfiguration>(host.Configuration.GetSection("Kinesis"));
-            services.Configure<StreamConfiguration>(host.Configuration.GetSection("Kinesis"));
-
-            services.AddLogging(b => b.AddConfiguration(host.Configuration.GetSection("Logging")).AddConsole());
-            services.AddSingleton<IAmazonKinesis>(session.CreateClient<AmazonKinesisClient>());
-
-            //services.AddHostedService<WorkerScheduler>();
-//            services.AddHostedService<WorkerService>();
-            //          services.AddHostedService<WorkerService>();
-            //        services.AddHostedService<WorkerService>();
-            services.AddHostedService<WorkerService>();
-            services.AddHostedService<LeaseDiscoveryWorker>();
-
-            services.AddSingleton<ILeaseDiscoveryService, LeaseDiscoveryService>();
-            services.AddSingleton<IKinesisShardReaderFactory>(new StubKinesisShardReaderFactory(10000, 100));
-            services.AddSingleton<IDistributedLockService, InMemoryLockService>();
-            services.AddSingleton<ILeaseClaimingService, LeaseClaimingService>();
+            services.AddSingleton<IKinesisShardReaderFactory>(new StubKinesisShardReaderFactory(1000, 100));
             services.AddSingleton<InMemoryLeaseRegistry>();
-
             services.AddSingleton<ILeaseRegistryQuery>(p => p.GetRequiredService<InMemoryLeaseRegistry>());
             services.AddSingleton<ILeaseRegistryCommand>(p => p.GetRequiredService<InMemoryLeaseRegistry>());
+            //services.AddSingleton<IDistributedLockService, InMemoryLockService>();
+            services.AddSingleton<IDistributedLockService, RedisDistributedLock>();
 
-            services.AddSingleton<IRecordsProcessor, SampleProcessor>();
-            //services.AddSingleton<IDiscoverShards, DiscoverShards>();
+            //services.AddLocalStack();
+            //services.AddSingleton<IRecordsProcessor, SampleProcessor>();
+            services.AddSingleton<IRecordsProcessor, ProcessorWithInvariantCheck>();
+
+            services.AddSingleton<IConnectionMultiplexer>(x =>
+                ConnectionMultiplexer.Connect(host.Configuration.GetValue<string>("Redis:ConnectionString")));
+
+
+            if (host.Configuration.GetValue<bool>("RealMode"))
+            {
+                services.AddSingleton<IAmazonKinesis>(p =>
+                    new AmazonKinesisClient(RegionEndpoint.EUWest1));
+                services.AddSingleton<IDiscoverShards, DiscoverShards>();
+                services.AddSingleton<IKinesisShardReaderFactory, KinesisShardReaderFactory>();
+            }
         }
 
-        private static ISession CreateLocalStackSession()
-        {
-            var awsAccessKeyId = "Key LockId";
-            var awsAccessKey = "Secret Key";
-            var awsSessionToken = "Token";
-            var regionName = "us-west-1";
-            var localStackHost = "localhost";
-
-            var session = SessionStandalone
-                .Init()
-                .WithSessionOptions(awsAccessKeyId, awsAccessKey, awsSessionToken, regionName)
-                .WithConfig(localStackHost)
-                .Create();
-            return session;
-        }
 
         private static async Task PublishRecords(string streamName, IAmazonKinesis client)
         {

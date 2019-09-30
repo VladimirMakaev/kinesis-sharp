@@ -11,7 +11,7 @@ namespace KinesisSharp.Records
 {
     public interface IKinesisShardReaderFactory
     {
-        Task<IKinesisShardReader> CreateReaderAsync(ShardRef shardRef, ShardPosition position,
+        Task<IKinesisShardReader> CreateReaderAsync(string shardId, ShardPosition position,
             CancellationToken token = default);
     }
 
@@ -26,12 +26,12 @@ namespace KinesisSharp.Records
             this.kinesisClient = kinesisClient;
         }
 
-        public async Task<IKinesisShardReader> CreateReaderAsync(ShardRef shardRef, ShardPosition position,
+        public async Task<IKinesisShardReader> CreateReaderAsync(string shardId, ShardPosition position,
             CancellationToken token = default)
         {
             var shardIterator = await kinesisClient.GetShardIteratorAsync(new GetShardIteratorRequest
             {
-                ShardId = shardRef.ShardId,
+                ShardId = shardId,
                 StreamName = configuration.Value.StreamArn,
                 ShardIteratorType = ToIteratorType(position),
                 StartingSequenceNumber = ToStartingSequenceNumber(position)

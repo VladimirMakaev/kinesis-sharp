@@ -9,7 +9,7 @@ namespace KinesisSharp.Shards
 {
     public interface IDiscoverShards
     {
-        Task<IReadOnlyCollection<Shard>> GetShardsAsync(string streamName, CancellationToken token);
+        Task<IReadOnlyCollection<Shard>> GetShardsAsync(string streamName, CancellationToken token = default);
     }
 
     public class DiscoverShards : IDiscoverShards
@@ -22,7 +22,7 @@ namespace KinesisSharp.Shards
             this.kinesis = kinesis;
         }
 
-        public async Task<IReadOnlyCollection<Shard>> GetShardsAsync(string streamName, CancellationToken token)
+        public async Task<IReadOnlyCollection<Shard>> GetShardsAsync(string streamName, CancellationToken token = default)
         {
             string tokenRequestToken = null;
 
@@ -31,8 +31,9 @@ namespace KinesisSharp.Shards
             {
                 var response = await kinesis.ListShardsAsync(new ListShardsRequest
                 {
-                    StreamName = streamName,
-                    MaxResults = BatchSize
+                    StreamName = tokenRequestToken == null ? streamName : null,
+                    MaxResults = BatchSize,
+                    NextToken = tokenRequestToken
                 }, token).ConfigureAwait(false);
 
                 result.AddRange(response.Shards);

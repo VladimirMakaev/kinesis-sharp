@@ -5,7 +5,7 @@ services:
     privileged: true
     image: localstack/localstack
     build: 
-      context: ./docker/localstack
+      context: .
     ports:
       - "4550-4595:4550-4595"
       - "${PORT_WEB_UI-8080}:${PORT_WEB_UI-8080}"

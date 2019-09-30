@@ -1,0 +1,8 @@
+version: '2.1'
+
+services:
+  tester:
+    build:
+      context: ../../src
+      dockerfile: Tester/Dockerfile
+
