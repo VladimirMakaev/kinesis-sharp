@@ -15,6 +15,7 @@ using KinesisSharp.Leases.Discovery;
 using KinesisSharp.Leases.Lock;
 using KinesisSharp.Leases.Lock.Redis;
 using KinesisSharp.Leases.Registry;
+using KinesisSharp.Leases.Registry.Redis;
 using KinesisSharp.Processor;
 using KinesisSharp.Records;
 using KinesisSharp.Shards;
@@ -82,8 +83,8 @@ namespace Tester
             });
             services.AddSingleton<IKinesisShardReaderFactory>(new StubKinesisShardReaderFactory(1000, 100));
             services.AddSingleton<InMemoryLeaseRegistry>();
-            services.AddSingleton<ILeaseRegistryQuery>(p => p.GetRequiredService<InMemoryLeaseRegistry>());
-            services.AddSingleton<ILeaseRegistryCommand>(p => p.GetRequiredService<InMemoryLeaseRegistry>());
+            services.AddSingleton<ILeaseRegistryQuery, RedisLeaseRegistryQuery>();
+            services.AddSingleton<ILeaseRegistryCommand, RedisRegistryLeaseCommand>();
             //services.AddSingleton<IDistributedLockService, InMemoryLockService>();
             services.AddSingleton<IDistributedLockService, RedisDistributedLock>();
 

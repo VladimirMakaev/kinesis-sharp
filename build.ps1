@@ -13,7 +13,11 @@ switch ($TaskName) {
         Write-Host "Execute ${TaskName}"
     }
     'Local' {
-        docker-compose -f "./docker/localstack/docker-compose.yml" build
+        if ($Up) {
+            docker-compose -f "./docker/localstack/docker-compose.yml" up --build
+        } else {
+            docker-compose -f "./docker/localstack/docker-compose.yml" build
+        }
     }
     'Test1' {
         if ($Up) {
