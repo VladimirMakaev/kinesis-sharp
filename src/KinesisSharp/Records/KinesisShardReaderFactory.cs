@@ -29,13 +29,15 @@ namespace KinesisSharp.Records
         public async Task<IKinesisShardReader> CreateReaderAsync(string shardId, ShardPosition position,
             CancellationToken token = default)
         {
-            var shardIterator = await kinesisClient.GetShardIteratorAsync(new GetShardIteratorRequest
-            {
-                ShardId = shardId,
-                StreamName = configuration.Value.StreamArn,
-                ShardIteratorType = ToIteratorType(position),
-                StartingSequenceNumber = ToStartingSequenceNumber(position)
-            }, token).ConfigureAwait(false);
+            var shardIterator = await kinesisClient.GetShardIteratorAsync(
+                new GetShardIteratorRequest
+                {
+                    ShardId = shardId,
+                    StreamName = configuration.Value.StreamArn,
+                    ShardIteratorType = ToIteratorType(position),
+                    //Timestamp = configuration.Value.TimeStamp.GetValueOrDefault(),
+                    StartingSequenceNumber = ToStartingSequenceNumber(position)
+                }, token).ConfigureAwait(false);
 
             return new KinesisReader(shardIterator.ShardIterator, kinesisClient, configuration.Value.RecordsBatchLimit);
         }
@@ -58,6 +60,7 @@ namespace KinesisSharp.Records
                 return ShardIteratorType.TRIM_HORIZON;
             }
 
+
             return ShardIteratorType.AT_SEQUENCE_NUMBER;
         }
 
@@ -75,26 +78,19 @@ namespace KinesisSharp.Records
             }
 
             public string ShardIterator { get; private set; }
-
-
             public bool EndOfShard { get; private set; }
             public long? MillisBehindLatest { get; private set; }
             public IReadOnlyList<Record> Records { get; private set; }
 
             public async Task ReadNextAsync(CancellationToken token = default)
             {
-                var response = await kinesisClient.GetRecordsAsync(new GetRecordsRequest
-                {
-                    ShardIterator = ShardIterator,
-                    Limit = batchLimit
-                }, token).ConfigureAwait(false);
-
+                var response = await kinesisClient
+                    .GetRecordsAsync(new GetRecordsRequest {ShardIterator = ShardIterator, Limit = batchLimit}, token)
+                    .ConfigureAwait(false);
 
                 ShardIterator = response.NextShardIterator;
                 Records = new ReadOnlyCollection<Record>(response.Records);
-
                 MillisBehindLatest = response.MillisBehindLatest;
-
                 EndOfShard = response.NextShardIterator == null;
             }
         }

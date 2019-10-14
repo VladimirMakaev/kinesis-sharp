@@ -1,5 +1,7 @@
-﻿using System.Threading;
+﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using KinesisSharp.Common;
 using Newtonsoft.Json;
 using StackExchange.Redis;
 
@@ -26,11 +28,30 @@ namespace KinesisSharp.Leases.Registry.Redis
             return await transaction.ExecuteAsync().ConfigureAwait(false);
         }
 
+        public async Task<Result<Lease>> AssignToWorker(string application, Lease lease, string worker)
+        {
+            var db = multiplexer.GetDatabase();
+            var transaction = db.CreateTransaction();
+            var tasks = new List<Task>
+            {
+                transaction.SetRemoveAsync(Keys.AssignedTo(application, lease.Owner), lease.ShardId),
+                transaction.SetAddAsync(Keys.AssignedTo(application, lease.Owner), lease.ShardId),
+                transaction.StringSetAsync(Keys.Lease(application, lease.ShardId),
+                    JsonConvert.SerializeObject(lease, Formatting.Indented), null)
+            };
+
+            await transaction.ExecuteAsync().ConfigureAwait(false);
+
+            var @new = Lease.New(lease);
+            @new.Owner = worker;
+            return Result.Success(@new);
+        }
+
         public async Task<UpdateLeaseResult> UpdateLease(string application, Lease lease, CancellationToken token)
         {
             var db = multiplexer.GetDatabase();
             await db.StringSetAsync(Keys.Lease(application, lease.ShardId),
-                    JsonConvert.SerializeObject(lease, Formatting.Indented), null, When.NotExists)
+                    JsonConvert.SerializeObject(lease, Formatting.Indented), null)
                 .ConfigureAwait(false);
             return UpdateLeaseResult.Success(lease);
         }

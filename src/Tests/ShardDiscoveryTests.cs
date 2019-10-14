@@ -32,7 +32,7 @@ namespace Tests
         [Fact]
         public async Task Test1()
         {
-            var shards = await Subject.GetShardsAsync("shard-test-1", CancellationToken.None).ConfigureAwait(false);
+            var shards = await Subject.GetShardsAsync("vladimir-stream-1", CancellationToken.None).ConfigureAwait(false);
             outputHelper.WriteLine(JsonConvert.SerializeObject(shards, Formatting.Indented));
         }
     }

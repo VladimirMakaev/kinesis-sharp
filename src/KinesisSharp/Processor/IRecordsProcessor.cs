@@ -8,4 +8,11 @@ namespace KinesisSharp.Processor
     {
         Task ProcessRecordsAsync(IReadOnlyList<Record> records, RecordProcessingContext context);
     }
+
+    public class CheckpointingResult
+    {
+        public bool TakeCheckpoint { get; set; }
+
+
+    }
 }

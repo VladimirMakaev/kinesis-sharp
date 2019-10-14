@@ -11,5 +11,10 @@
         {
             return $"L:{application}:_";
         }
+
+        public static string AssignedTo(string application, string workerId)
+        {
+            return $"L:ByWorker:{workerId}";
+        }
     }
 }

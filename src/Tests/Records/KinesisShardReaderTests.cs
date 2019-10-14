@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Amazon;
 using Amazon.Kinesis;
@@ -26,21 +27,29 @@ namespace Tests.Records
         protected override IServiceCollection ConfigureServices(IServiceCollection services)
         {
             /*
-             *"AWS_ACCESS_KEY_ID": "ASIA56ZSXAX7XAP3YSZP",
-        "AWS_SECRET_ACCESS_KEY": "hbbM/J465ZpvEf/8S6bC0SChwTvF4JN0r1P0D40J",
-        "AWS_SESSION_TOKEN": "FQoGZXIvYXdzEOn//////////wEaDImSc8tHXFFK2YgSNSKRAkhDSAXhSX1IxwbZltXtT2EjzGS6uvx1hS4Q5/d1lTpXxl6NlrTwthsA/EbLW5kIE+W40mHEz+w3PfaHtor2X+piPGlzBV+T4XQkDSseSYg+mQk/KkxL3N8kiSfWcsfKw0gA3KGGs5vxKjFwQRcGO5pNFz0JJ11wGqalhCdRMxqjfKR99jUWFOxRDh8KveIUHgQebAexXPNasqPIMAMcJZWbnr9rqdpL3Oi4fEYPXrrsoBqzav+IxrjN4+GzgG/dqKnC6zqP9R3q3nefvU6kyOv33YH4KOfgkBanY6+glkcqrahw+J1ZrJXaVYScUedh6nJxkMeeeV1JKcN4/hX/y5ZzQyo7TT6m7FBiBco2AOANjSirhMXsBQ==",
-        
+             *@{AccessKey=ASIA56ZSXAX7Z5WLXAI3; SecretKey=M169U9XkT0UDu6XU50vOfuMSxnjoErB/JCra6Pb7; Token=FQoGZXIvYXdzEB4aDIUgzRRz6ifbwrvBGSKRAtGIps+4tJRDxTYAGynVVkRqNRl93Uj7yN0wXaWxwtLKqQSWHKEUy+tcBjviNNss1kxNXY171e0FGumKr13ke8FoXIN0MFQSsdaXmeSZ1B390uRmsXcfPIofi2GtlYaV4Hw1sH6/M4yLGcoTVWMohPt+eQa1oIJrdgUrS0mTruLuupqNNbnZB/gIA0OrWsxDI+93ZSj/Jhj7OOFxfu5ndaD8HBldLBac9z9gKjSOkhHiLJo3MfhdggSrZ7I7e9aBCNoWvKb7JnQOOdE3xBulI1rTxhud/b9dVlfBE85EvV6BGdN9cTGbzbg5LDdXiij/iLWS0jGysSVIVUvDnn6HtNe/OBo6RWnWvggE/yc4V4G45yjo8YjtBQ==}
+             *
+             *
              *
              *
              */
+
+            var cred = new
+            {
+                AccessKey = "ASIA56ZSXAX7Z5WLXAI3",
+                SecretKey = "M169U9XkT0UDu6XU50vOfuMSxnjoErB/JCra6Pb7",
+                Token =
+                    "FQoGZXIvYXdzEB4aDIUgzRRz6ifbwrvBGSKRAtGIps+4tJRDxTYAGynVVkRqNRl93Uj7yN0wXaWxwtLKqQSWHKEUy+tcBjviNNss1kxNXY171e0FGumKr13ke8FoXIN0MFQSsdaXmeSZ1B390uRmsXcfPIofi2GtlYaV4Hw1sH6/M4yLGcoTVWMohPt+eQa1oIJrdgUrS0mTruLuupqNNbnZB/gIA0OrWsxDI+93ZSj/Jhj7OOFxfu5ndaD8HBldLBac9z9gKjSOkhHiLJo3MfhdggSrZ7I7e9aBCNoWvKb7JnQOOdE3xBulI1rTxhud/b9dVlfBE85EvV6BGdN9cTGbzbg5LDdXiij/iLWS0jGysSVIVUvDnn6HtNe/OBo6RWnWvggE/yc4V4G45yjo8YjtBQ=="
+            };
+
 
             services.Configure<ApplicationConfiguration>(Configuration.GetSection("Kinesis"));
             services.AddSingleton<IAmazonKinesis>(p =>
                 new AmazonKinesisClient(
                     new SessionAWSCredentials(
-                        "ASIA56ZSXAX7WHLEL7GX",
-                        "fEmvDnKGHGdmc+B/BvBOgn0yYwiWJNwNzIZ92p40",
-                        "FQoGZXIvYXdzEBkaDO18ogUxk15Km441riKRAv6DRznhlu+9w96aur0lTYpqU3ZnAXqVQdrDhBHTsKus3Tk3l02NFIF3hM8LNJBPgd3kSh/zHIOiv+RuQc+lnylYYxOYBMoLazBM5CeHtmhlOHTqLffsps3UI6O102xxCnoYBZtcZY19mWoMcC4jpnVXGHeaN44xnNc02P9q2SwxFKemUkYlNo+blrrDWjcaZh3loPSK7chswal8txSJuEYwVrzFfbKhJvWAp3NBi06gMT3BLKHO0LJKMl3VOVBppxuducKHaE2e13KdZRE0T7E/70UFGL37pe7/JOiYXEnvDlN1jMw5z8vQIi9X9YQ5AKiJoMUwSYKxheQ2TMthWw1K0/+EEbYqPs9KVNPHKYFgXiiVz8/sBQ=="),
+                        cred.AccessKey,
+                        cred.SecretKey,
+                        cred.Token),
                     RegionEndpoint.EUWest1));
             services.AddSingleton<IKinesisShardReaderFactory, KinesisShardReaderFactory>();
             return base.ConfigureServices(services);
@@ -51,7 +60,7 @@ namespace Tests.Records
         {
             return builder.AddInMemoryCollection(new Dictionary<string, string>
             {
-                {"Logging:LogLevel:Default", "Debug"}, {"Kinesis:StreamArn", "shard-test-1"}
+                {"Logging:LogLevel:Default", "Debug"}, {"Kinesis:StreamArn", "vladimir-stream-1"}
             }).AddEnvironmentVariables();
         }
 
@@ -59,6 +68,7 @@ namespace Tests.Records
         public async Task Test1()
         {
             var reader = await Subject.CreateReaderAsync("shardId-000000000001", ShardPosition.TrimHorizon);
+
             do
             {
                 await reader.ReadNextAsync().ConfigureAwait(false);
@@ -66,7 +76,7 @@ namespace Tests.Records
                 {
                     reader.EndOfShard, reader.MillisBehindLatest, reader.Records.Count
                 }));
-            } while (!reader.EndOfShard);
+            } while (!reader.EndOfShard && reader.MillisBehindLatest > 0);
         }
     }
 }

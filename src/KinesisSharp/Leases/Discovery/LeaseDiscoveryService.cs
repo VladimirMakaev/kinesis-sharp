@@ -185,7 +185,7 @@ namespace KinesisSharp.Leases.Discovery
             switch (requestedPosition.Type)
             {
                 case InitialPositionType.TrimHorizon:
-                    return map.SelectAllAncestors(currentOpenShard).Concat(new[] {currentOpenShard});
+                    return map.SelectAllAncestors(currentOpenShard).Concat(new[] { currentOpenShard });
                 default:
                     throw new ArgumentOutOfRangeException();
             }

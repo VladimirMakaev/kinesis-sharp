@@ -151,6 +151,7 @@ namespace KinesisSharp
                 while (!reader.EndOfShard || reader.MillisBehindLatest == 0)
                 {
                     logger.LogDebug("Reading next batch from {ShardId}", eachLease.ShardId);
+
                     await reader.ReadNextAsync(token).ConfigureAwait(false);
 
                     await processor.ProcessRecordsAsync(reader.Records,
@@ -174,7 +175,6 @@ namespace KinesisSharp
                 {
                     eachLease.Checkpoint = ShardPosition.ShardEnd;
                     logger.LogWarning("{Shard} has finished", eachLease.ShardId);
-
                 }
                 else
                 {

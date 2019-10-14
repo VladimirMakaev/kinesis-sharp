@@ -14,20 +14,20 @@ namespace KinesisSharp.Leases.Lock.Redis
             this.multiplexer = multiplexer;
         }
 
-        public async Task<LockResult> LockResource(string resourceName, string ownerId, TimeSpan duration)
+        public async Task<Result<Lock>> LockResource(string resourceName, string ownerId, TimeSpan duration)
         {
             var db = multiplexer.GetDatabase();
             var lockId = Keys.Lock(resourceName);
             var result = await db.LockTakeAsync(lockId, ownerId, duration).ConfigureAwait(false);
             if (result)
             {
-                return LockResult.Success(new Lock(lockId, resourceName, TimerProvider.UtcNow + duration, ownerId));
+                return Result.Success(new Lock(lockId, resourceName, TimerProvider.UtcNow + duration, ownerId));
             }
 
-            return LockResult.Fail(LockError.AlreadyLocked);
+            return Result.Fail<Lock>(Errors.AlreadyLocked);
         }
 
-        public async Task<LockResult> ExtendLock(Lock lockObject, TimeSpan duration)
+        public async Task<Result<Lock>> ExtendLock(Lock lockObject, TimeSpan duration)
         {
             var db = multiplexer.GetDatabase();
             var result = await db.LockExtendAsync(lockObject.LockId, lockObject.OwnerId, duration)
@@ -35,11 +35,11 @@ namespace KinesisSharp.Leases.Lock.Redis
 
             if (result)
             {
-                return LockResult.Success(new Lock(lockObject.LockId, lockObject.Resource,
+                return Result.Success(new Lock(lockObject.LockId, lockObject.Resource,
                     TimerProvider.UtcNow + duration, lockObject.OwnerId));
             }
 
-            return LockResult.Fail(LockError.AlreadyLocked);
+            return Result.Fail<Lock>(Errors.AlreadyLocked);
         }
 
         public async Task UnlockResource(Lock lockObject)

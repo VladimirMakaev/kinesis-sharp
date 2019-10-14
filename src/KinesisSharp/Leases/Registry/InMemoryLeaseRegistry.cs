@@ -19,6 +19,13 @@ namespace KinesisSharp.Leases.Registry
             return Task.FromResult(leases.TryAdd(lease.ShardId, lease));
         }
 
+        public Task<Result<Lease>> AssignToWorker(string application, Lease lease, string worker)
+        {
+            var newLease = Lease.New(lease);
+            newLease.Owner = worker;
+            return Task.FromResult(Result.Success(lease));
+        }
+
         public Task<bool> DeleteLease(string application, string shardId, CancellationToken token)
         {
             var leases = sharedMemory.GetOrAdd(application, new ConcurrentDictionary<string, Lease>());

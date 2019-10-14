@@ -58,7 +58,7 @@ namespace KinesisSharp.Leases
                 {
                     lease.Owner = workerId;
                     lease.LockExpiresOn = @lock.Lock.ExpiresOn;
-                    var updateLeaseResult = await leaseCommand.UpdateLease(application, lease, token)
+                    var updateLeaseResult = await leaseCommand.AssignToWorker(application, lease, workerId)
                         .ConfigureAwait(false);
 
                     if (updateLeaseResult.IsSuccess)

@@ -39,7 +39,7 @@ namespace Tester
                     {"Logging:LogLevel:Default", "Debug"},
                     {"Kinesis:NumberOfWorkers", "5"},
                     {"Kinesis:RecordsBatchLimit", "1000"},
-                    {"Kinesis:StreamArn", "shard-test-1"},
+                    {"Kinesis:StreamArn", "vladimir-stream-1"},
                     {"Kinesis:ApplicationName", "shard-test-application"}
                 }).AddEnvironmentVariables())
                 .ConfigureServices(ConfigureServices)
